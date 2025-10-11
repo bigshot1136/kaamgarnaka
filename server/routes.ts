@@ -32,7 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (data.type === "register" && data.userId) {
           clients.set(data.userId, ws);
-          console.log(`User ${data.userId} registered for WebSocket notifications`);
+          console.log(`[WebSocket Register] ✅ User ${data.userId} registered for notifications (Total clients: ${clients.size})`);
         }
       } catch (error) {
         console.error("WebSocket message error:", error);
@@ -44,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const [userId, client] of clients.entries()) {
         if (client === ws) {
           clients.delete(userId);
-          console.log(`User ${userId} disconnected`);
+          console.log(`[WebSocket Disconnect] User ${userId} disconnected (Total clients: ${clients.size})`);
           break;
         }
       }
@@ -53,14 +53,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to notify laborers
   function notifyLaborers(laborerIds: string[], job: any) {
+    console.log(`[WebSocket Notify] Attempting to notify ${laborerIds.length} laborers:`, laborerIds);
+    
     laborerIds.forEach((laborerId) => {
       const ws = clients.get(laborerId);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: "new_job",
-          job,
-        }));
+      
+      if (!ws) {
+        console.log(`[WebSocket Notify] ❌ Laborer ${laborerId} not found in clients map (not connected)`);
+        return;
       }
+      
+      if (ws.readyState !== WebSocket.OPEN) {
+        console.log(`[WebSocket Notify] ❌ Laborer ${laborerId} socket not OPEN (state: ${ws.readyState})`);
+        return;
+      }
+      
+      console.log(`[WebSocket Notify] ✅ Sending notification to laborer ${laborerId}`);
+      ws.send(JSON.stringify({
+        type: "new_job",
+        job,
+      }));
     });
   }
 
