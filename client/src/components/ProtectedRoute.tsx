@@ -11,14 +11,18 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
+  // Check localStorage as fallback during loading to handle race conditions
+  const storedUser = !isLoading && !user ? localStorage.getItem("user") : null;
+  const effectiveUser = user || (storedUser ? JSON.parse(storedUser) : null);
+
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isLoading && !effectiveUser) {
       setLocation("/auth/signin");
-    } else if (!isLoading && requiredRole && user?.role !== requiredRole) {
+    } else if (!isLoading && requiredRole && effectiveUser?.role !== requiredRole) {
       // Redirect to appropriate dashboard if wrong role
-      setLocation(user?.role === "customer" ? "/dashboard/customer" : "/dashboard/laborer");
+      setLocation(effectiveUser?.role === "customer" ? "/dashboard/customer" : "/dashboard/laborer");
     }
-  }, [user, isLoading, requiredRole, setLocation]);
+  }, [effectiveUser, isLoading, requiredRole, setLocation]);
 
   if (isLoading) {
     return (
@@ -31,7 +35,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
 
-  if (!user || (requiredRole && user.role !== requiredRole)) {
+  if (!effectiveUser || (requiredRole && effectiveUser.role !== requiredRole)) {
     return null;
   }
 

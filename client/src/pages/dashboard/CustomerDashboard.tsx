@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,6 +35,12 @@ export default function CustomerDashboard() {
   const [skillRequirements, setSkillRequirements] = useState<JobSkillRequirement[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillType | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch customer's jobs
+  const { data: customerJobs = [], refetch: refetchJobs } = useQuery({
+    queryKey: ["/api/jobs/customer", user?.id],
+    enabled: !!user?.id,
+  });
 
   const form = useForm<JobForm>({
     resolver: zodResolver(jobSchema),
@@ -107,9 +114,10 @@ export default function CustomerDashboard() {
         throw new Error(error.error || "Job posting failed");
       }
 
-      // Success - reset form
+      // Success - reset form and refetch jobs
       setSkillRequirements([]);
       form.reset();
+      refetchJobs();
       alert("Job posted successfully! Notifying nearby workers...");
     } catch (error: any) {
       console.error("Job posting error:", error);
@@ -119,11 +127,6 @@ export default function CustomerDashboard() {
     }
   };
 
-  // Mock active jobs
-  const mockJobs = [
-    { id: "1", status: "pending", skills: ["mason"], location: "Mumbai", amount: 710 },
-    { id: "2", status: "in_progress", skills: ["carpenter"], location: "Pune", amount: 660 },
-  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -302,27 +305,40 @@ export default function CustomerDashboard() {
               <div>
                 <h2 className="font-display font-semibold text-xl mb-4">Active Jobs</h2>
                 <div className="space-y-3">
-                  {mockJobs.map((job) => (
-                    <Card key={job.id} className="hover-elevate transition-all" data-testid={`job-card-${job.id}`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              {job.skills.map((skill) => (
-                                <SkillBadge key={skill} skill={skill as SkillType} />
-                              ))}
-                            </div>
-                            <p className="text-sm text-muted-foreground">{job.location}</p>
-                          </div>
-                          <StatusBadge status={job.status} />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Total Amount</span>
-                          <span className="font-semibold">₹{job.amount}</span>
-                        </div>
+                  {customerJobs.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-8 text-center text-muted-foreground">
+                        No active jobs. Post your first job to get started!
                       </CardContent>
                     </Card>
-                  ))}
+                  ) : (
+                    customerJobs.map((job: any) => {
+                      const skills = job.skillsNeeded?.map((s: any) => s.skill) || [];
+                      const totalWithFee = (job.totalAmount || 0) + (job.platformFee || 0);
+                      
+                      return (
+                        <Card key={job.id} className="hover-elevate transition-all" data-testid={`job-card-${job.id}`}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  {skills.map((skill: string) => (
+                                    <SkillBadge key={skill} skill={skill as SkillType} data-testid={`badge-skill-${skill}`} />
+                                  ))}
+                                </div>
+                                <p className="text-sm text-muted-foreground">{job.location}</p>
+                              </div>
+                              <StatusBadge status={job.status} />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Total Amount</span>
+                              <span className="font-semibold">₹{totalWithFee}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
