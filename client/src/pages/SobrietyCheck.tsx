@@ -240,14 +240,39 @@ export default function SobrietyCheck() {
                 )}
 
                 {result === "failed" && (
-                  <Button 
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setLocation("/dashboard/laborer")}
-                    data-testid="button-back-dashboard"
-                  >
-                    Back to Dashboard
-                  </Button>
+                  <>
+                    <Button 
+                      variant="outline"
+                      className="flex-1"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch("/api/sobriety-check/request-review", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ laborerId: user?.id }),
+                          });
+                          
+                          if (response.ok) {
+                            alert("Manual review requested successfully. You'll be notified of the decision.");
+                            setLocation("/dashboard/laborer");
+                          }
+                        } catch (error) {
+                          console.error("Failed to request review:", error);
+                        }
+                      }}
+                      data-testid="button-request-review"
+                    >
+                      Request Manual Review
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setLocation("/dashboard/laborer")}
+                      data-testid="button-back-dashboard"
+                    >
+                      Back to Dashboard
+                    </Button>
+                  </>
                 )}
 
                 {capturedImage && !result && (

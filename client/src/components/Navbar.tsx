@@ -1,12 +1,22 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Menu, X } from "lucide-react";
+import { Briefcase, Menu, X, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Navbar() {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -44,16 +54,43 @@ export function Navbar() {
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
-            <Link href="/auth/signin">
-              <Button variant="ghost" size="sm" data-testid="button-signin">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/auth/get-started">
-              <Button size="sm" data-testid="button-get-started">
-                Get Started
-              </Button>
-            </Link>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2" data-testid="button-user-menu">
+                    <User className="h-4 w-4" />
+                    <span>{user.fullName}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href={user.role === "customer" ? "/dashboard/customer" : "/dashboard/laborer"}>
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout} data-testid="button-signout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Link href="/auth/signin">
+                  <Button variant="ghost" size="sm" data-testid="button-signin">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/auth/get-started">
+                  <Button size="sm" data-testid="button-get-started">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -85,25 +122,59 @@ export function Navbar() {
                 </Link>
               ))}
               <div className="flex flex-col gap-2 mt-2 pt-2 border-t">
-                <Link href="/auth/signin">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setMobileMenuOpen(false)}
-                    data-testid="button-mobile-signin"
-                  >
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/auth/get-started">
-                  <Button
-                    className="w-full"
-                    onClick={() => setMobileMenuOpen(false)}
-                    data-testid="button-mobile-get-started"
-                  >
-                    Get Started
-                  </Button>
-                </Link>
+                {user ? (
+                  <>
+                    <div className="px-3 py-2 text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        {user.fullName}
+                      </div>
+                    </div>
+                    <Link href={user.role === "customer" ? "/dashboard/customer" : "/dashboard/laborer"}>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Dashboard
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        logout();
+                        setMobileMenuOpen(false);
+                      }}
+                      data-testid="button-mobile-signout"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/auth/signin">
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setMobileMenuOpen(false)}
+                        data-testid="button-mobile-signin"
+                      >
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link href="/auth/get-started">
+                      <Button
+                        className="w-full"
+                        onClick={() => setMobileMenuOpen(false)}
+                        data-testid="button-mobile-get-started"
+                      >
+                        Get Started
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>

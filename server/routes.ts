@@ -333,7 +333,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
       // Analyze image with Gemini Vision
       const prompt = `Analyze this image for signs of impairment or intoxication. Check for:
@@ -344,15 +343,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detailed findings" }`;
 
-      const imageParts = [{
-        inlineData: {
-          data: validatedData.imageDataUrl?.split(',')[1] || '',
-          mimeType: "image/jpeg",
-        },
-      }];
+      const result = await genAI.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: validatedData.imageDataUrl?.split(',')[1] || '',
+                },
+              },
+              { text: prompt },
+            ],
+          },
+        ],
+      });
 
-      const result = await model.generateContent([prompt, ...imageParts]);
-      const responseText = result.response.text();
+      const responseText = result.response?.text() ?? "";
       
       // Parse AI response
       let aiResult;
@@ -390,6 +399,37 @@ Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detail
       const check = await storage.getLatestSobrietyCheck(req.params.laborerId);
       res.json(check || null);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Request manual review for failed sobriety check
+  app.post("/api/sobriety-check/request-review", async (req, res) => {
+    try {
+      const { laborerId } = req.body;
+      
+      if (!laborerId) {
+        return res.status(400).json({ error: "Laborer ID required" });
+      }
+
+      const latestCheck = await storage.getLatestSobrietyCheck(laborerId);
+      
+      if (!latestCheck) {
+        return res.status(404).json({ error: "No sobriety check found" });
+      }
+
+      if (latestCheck.status !== "failed") {
+        return res.status(400).json({ error: "Can only request review for failed checks" });
+      }
+
+      // Update check status to pending_review
+      const updatedCheck = await storage.updateSobrietyCheck(latestCheck.id, {
+        status: "pending_review",
+      });
+
+      res.json(updatedCheck);
+    } catch (error: any) {
+      console.error("Request review error:", error);
       res.status(500).json({ error: error.message });
     }
   });

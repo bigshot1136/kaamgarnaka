@@ -4,12 +4,14 @@ import type { User } from "@shared/schema";
 interface AuthContextType {
   user: User | null;
   setUser: (user: User | null) => void;
+  logout: () => void;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   setUser: () => {},
+  logout: () => {},
   isLoading: true,
 });
 
@@ -35,8 +37,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("user");
+    window.location.href = "/";
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser: handleSetUser, isLoading }}>
+    <AuthContext.Provider value={{ user, setUser: handleSetUser, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
