@@ -2,14 +2,15 @@
 
 ## Design Approach
 
-**System Selected:** Material Design with mobile-first principles
-**Rationale:** Utility-focused labor marketplace requiring clear information hierarchy, strong visual feedback for real-time status updates, and accessibility for users with varying tech literacy levels.
+**System Selected:** Material Design adapted with warm earth tones and human-centric principles
+
+**Rationale:** Labor marketplace requiring trust-building through warm, approachable aesthetics while maintaining clarity for real-time job matching and verification workflows. The brown worker logo establishes brand identity rooted in craftsmanship and reliability.
 
 **Key Design Principles:**
-1. **Trust Through Transparency** - Clear status indicators, visible verification badges, upfront pricing
-2. **Mobile-First Simplicity** - Large touch targets, readable text, streamlined flows
-3. **Real-Time Clarity** - Immediate visual feedback for job status, matching, and notifications
-4. **Inclusive Design** - Support for Hindi/regional languages, icon-heavy navigation for clarity
+1. **Trust Through Warmth** - Earth-toned palette evokes reliability and human connection
+2. **Mobile-First Clarity** - Large touch targets, multilingual support, icon-heavy navigation
+3. **Accessible Professionalism** - High contrast, readable typography, clear status indicators
+4. **Real-Time Feedback** - Immediate visual confirmation for job status and matching
 
 ---
 
@@ -18,180 +19,161 @@
 ### A. Color Palette
 
 **Light Mode:**
-- Primary: 220 85% 45% (Deep Blue - trust, reliability)
-- Primary Variant: 220 70% 35% (Darker blue for depth)
-- Secondary: 25 95% 50% (Warm Orange - action, urgency)
-- Success: 145 60% 45% (Green - verification, approved)
-- Warning: 45 95% 55% (Amber - review, pending)
-- Error: 0 75% 50% (Red - failed, rejected)
-- Background: 0 0% 98%
+- Primary: 28 45% 25% (Warm brown from logo - trust, craftsmanship)
+- Primary Hover: 28 50% 20% (Deeper brown for interaction)
+- Secondary: 18 70% 55% (Terracotta clay - action, warmth)
+- Success: 140 40% 45% (Sage green - verification, natural)
+- Warning: 42 85% 55% (Warm amber - review, caution)
+- Error: 8 70% 50% (Clay red - failed, urgent)
+- Background: 35 25% 96% (Warm off-white)
 - Surface: 0 0% 100%
-- Text Primary: 220 15% 20%
-- Text Secondary: 220 10% 45%
+- Text Primary: 28 25% 15%
+- Text Secondary: 28 15% 40%
+- Border: 28 20% 85%
 
 **Dark Mode:**
-- Primary: 220 80% 65%
-- Primary Variant: 220 70% 55%
-- Secondary: 25 90% 60%
-- Success: 145 55% 55%
-- Warning: 45 90% 65%
-- Error: 0 70% 60%
-- Background: 220 15% 12%
-- Surface: 220 15% 16%
-- Text Primary: 0 0% 95%
-- Text Secondary: 0 0% 70%
+- Primary: 28 40% 65% (Lifted warm brown)
+- Primary Hover: 28 45% 70%
+- Secondary: 18 65% 65% (Lighter terracotta)
+- Success: 140 35% 60%
+- Warning: 42 80% 65%
+- Error: 8 65% 60%
+- Background: 28 15% 10%
+- Surface: 28 12% 14%
+- Text Primary: 35 15% 92%
+- Text Secondary: 35 10% 70%
+- Border: 28 10% 25%
 
 ### B. Typography
 
 **Font Families:**
-- Primary: 'Inter' (clean, highly readable for data/forms)
-- Display: 'Poppins' (friendly, approachable for headings)
+- Primary: 'Inter' (clean, multilingual support for Hindi/Marathi/English)
+- Display: 'Poppins' (friendly, warm for headings)
 
 **Scale:**
-- Hero/Display: 2.5rem (40px) - bold, Poppins
-- H1: 2rem (32px) - semibold, Poppins
-- H2: 1.5rem (24px) - semibold, Poppins
-- H3: 1.25rem (20px) - medium, Poppins
-- Body Large: 1.125rem (18px) - regular, Inter
-- Body: 1rem (16px) - regular, Inter
-- Small: 0.875rem (14px) - regular, Inter
-- Caption: 0.75rem (12px) - medium, Inter
+- Display: 2.5rem, bold, Poppins
+- H1: 2rem, semibold, Poppins
+- H2: 1.5rem, semibold, Poppins
+- H3: 1.25rem, medium, Poppins
+- Body Large: 1.125rem, regular, Inter
+- Body: 1rem, regular, Inter
+- Small: 0.875rem, regular, Inter
+- Caption: 0.75rem, medium, Inter
 
 ### C. Layout System
 
-**Spacing Scale:** Use Tailwind units 2, 4, 6, 8, 12, 16, 24 for consistent rhythm
-- Card padding: p-6 (24px)
-- Section spacing: py-12 md:py-16 lg:py-24
-- Element gaps: gap-4 (standard), gap-6 (generous)
+**Spacing Scale:** Tailwind units 2, 4, 6, 8, 12, 16, 24 for consistent rhythm
+- Card padding: p-6
+- Section spacing: py-12 md:py-20 lg:py-24
 - Container: max-w-7xl mx-auto px-4 md:px-6
+- Element gaps: gap-4 (standard), gap-6 (generous)
 
 **Grid System:**
 - Mobile: Single column, full-width cards
-- Tablet: 2-column for job cards, worker profiles
-- Desktop: 3-column for browsing, 2-column for dashboards
+- Tablet: 2-column for job/worker cards
+- Desktop: 3-column for browsing, 2-column split for dashboards
 
 ### D. Component Library
 
 **Navigation:**
-- Sticky header with logo, main nav links, profile/notification icons
-- Bottom navigation for mobile (Home, Jobs, Profile, Notifications)
-- Hamburger menu for secondary links on mobile
-- Floating action button (FAB) for primary action (Post Job for customers, View Requests for laborers)
+- Sticky header: Logo left, main links center, profile/notifications right, warm brown background with subtle shadow
+- Mobile bottom nav: Home, Jobs, Profile, Notifications with terracotta active state
+- Floating action button: Terracotta circular button with white icon for primary actions
 
 **Cards:**
-- Elevated cards with subtle shadow (shadow-md hover:shadow-lg transition)
-- Job cards: Skill badges, location, price, urgency indicator, CTA button
-- Worker cards: Profile photo, skills tags, rating stars, verification badge, availability status
-- Rounded corners: rounded-xl for cards, rounded-lg for smaller elements
+- Elevated with shadow-md hover:shadow-lg transition, rounded-xl corners
+- Job cards: Skill badges (warm neutral backgrounds), location pin icon, price in bold terracotta, urgency indicator (amber pill), CTA button
+- Worker cards: Profile photo with subtle brown border, skill tags (earth tone pills), gold star ratings, green verification badge, availability dot indicator
+- Background: White in light mode, warm dark surface in dark mode
 
 **Status Indicators:**
-- Pills/Badges with icons: "Verified" (green check), "Pending Review" (amber clock), "Available" (green dot)
-- Color-coded background with semibold text
-- Real-time pulse animation for "Incoming Request" notifications
+- Verified: Sage green pill with check icon, semibold text
+- Pending: Amber pill with clock icon
+- Available: Green dot pulse animation
+- Busy: Gray dot, static
+- Real-time requests: Terracotta banner with pulsing border, slide-in animation
 
 **Forms & Inputs:**
-- Outlined text fields with floating labels
-- Large touch targets (min-height: 48px)
-- Multi-select chips for skills selection
-- Stepper component for profile completion progress
-- Upload zones with drag-and-drop and preview
+- Outlined fields with floating labels, brown focus border
+- Touch targets: min-height 48px, generous padding
+- Multi-select chips: Rounded-full pills with brown border, terracotta when selected
+- Upload zones: Dashed brown border, drag-drop with preview thumbnails
+- Progress stepper: Horizontal dots, filled terracotta for completed steps
 
 **Buttons:**
-- Primary: Filled with primary color, white text, rounded-lg, py-3 px-6
-- Secondary: Outlined with primary color, rounded-lg
-- Text buttons for tertiary actions
-- FAB for primary mobile actions (rounded-full, shadow-lg)
-
-**Job Matching Flow:**
-- Real-time notification banner: Slide-in from top, orange accent, pulsing animation
-- Accept button: Large, full-width on mobile, primary color
-- Timer countdown visual for acceptance window
-- Progress stepper for sobriety check stages
+- Primary: Filled terracotta, white text, rounded-lg, py-3 px-6, shadow-sm
+- Secondary: Outlined brown, rounded-lg, transparent background
+- On images: Outlined with backdrop-blur-md, white text/border
+- Icon buttons: Circular, subtle brown background on hover
+- Disabled: Reduced opacity, grayscale
 
 **Payment Display:**
-- Breakdown table: Labor wage + convenience fee with clear math
-- UPI integration: QR code display, direct payment link button
-- Earnings dashboard: Bar chart for weekly earnings, total balance card
-- Withdrawal CTA: Prominent button with UPI icon
+- Breakdown table: Labor wage row, convenience fee row, total in bold terracotta
+- UPI integration: QR code with brown frame, payment link button with UPI icon
+- Earnings dashboard: Bar chart (terracotta bars), total balance card (sage green accent), withdrawal button prominent
+- Transaction history: Timeline view with status icons
 
-**AI Sobriety Check Interface:**
-- Camera preview: Large square viewfinder with alignment guide
-- Status indicators: Analyzing (spinner), Passed (green check), Failed (red X)
-- Guidance text: "Look at the camera" with icon cues
-- Results screen: Pass/fail with clear next steps
+**AI Sobriety Check:**
+- Camera preview: Large viewfinder, brown corner guides
+- Status: Analyzing spinner (terracotta), Passed (green check), Failed (red X)
+- Instruction banner: Top of screen, brown background, white text with icon cues
+- Results overlay: Full-screen card with clear pass/fail messaging and next action button
 
 ### E. Animations
 
-**Use Sparingly:**
-- Notification slide-in: 300ms ease-out from top
-- Status change pulse: 2-second subtle pulse on status badges
-- Button press: Scale down 0.95 on active
-- Card hover: Lift shadow transition 200ms
-- Loading states: Skeleton screens, not spinners where possible
+**Minimal & Purposeful:**
+- Notification slide: 300ms ease-out from top
+- Status pulse: 2s subtle pulse on new status badges
+- Button active: Scale 0.95
+- Card hover: Shadow transition 200ms
+- Loading: Skeleton screens in warm neutral colors
 
 ---
 
-## Page-Specific Layouts
+## Page Layouts
 
 **Landing Page:**
-- Hero: Full-width banner image (workers on construction site), gradient overlay (primary color 60% opacity), centered headline "Connect with Skilled Workers Instantly", dual CTA buttons (For Customers/For Workers)
-- Features grid: 3-column on desktop showing key benefits (AI Safety Check, Fair Pricing, Quick Matching) with icons
-- How It Works: 3-step visual timeline with illustrations
-- Social proof: Trust badges, worker testimonials in cards
-- Footer: Quick links, contact info, language selector
+- Hero: Full-width image (diverse workers on construction site, warm sunlight), brown gradient overlay (28 45% 15% at 70% opacity), centered headline "Connect with Skilled Workers Instantly" in white Poppins bold, dual CTA buttons (terracotta filled "For Customers", outlined "For Workers")
+- Trust section: 3-column grid with icons (AI safety, fair pricing, instant matching) on warm backgrounds
+- How it works: 3-step horizontal timeline with worker illustrations
+- Social proof: Worker testimonial cards with photos, ratings, 2-column on desktop
+- CTA footer banner: Terracotta background, white text, prominent signup buttons
+
+**Dashboards:**
+- Customer: Top stats cards (active jobs, spent, saved workers) with terracotta accents, "Post Job" FAB, filterable job list with status tabs
+- Laborer: Earnings summary card (sage green total balance, terracotta withdrawal button), real-time job requests with accept/decline, circular profile completion meter, quick stats grid
+
+**Job Posting Flow:**
+- Multi-step with left form, right sticky summary card
+- Step 1: Skill selection with quantity steppers
+- Step 2: Location autocomplete, date/time pickers
+- Step 3: Price breakdown preview, confirmation with terms checkbox
 
 **Authentication:**
-- Split screen on desktop: Left side brand imagery/value prop, right side form
-- Mobile: Stacked with minimal branding at top
-- Role selection: Large card-style buttons with icons (Customer/Laborer)
-- Progress indicator for multi-step signup
-
-**Customer Dashboard:**
-- Top stats cards: Active Jobs, Total Spent, Saved Workers
-- Primary action: "Post New Job" prominent button
-- Job list: Status-filtered tabs (Active, Completed, Cancelled)
-- Quick filters: Skill type, date range
-
-**Laborer Dashboard:**
-- Earnings summary card: Total balance, this week, withdrawal button
-- Job requests: Real-time list with accept/decline actions
-- Profile completion meter: Circular progress with percentage
-- Quick stats: Jobs completed, rating score, verification status
-
-**Job Posting Flow (Customer):**
-- Step 1: Skill selection with quantity counters
-- Step 2: Location and timing inputs
-- Step 3: Price preview and confirmation
-- Visual: Left side form, right side running summary card
-
-**Sobriety Check Screen:**
-- Fullscreen camera view with corner guides
-- Top: Instructions banner with countdown
-- Bottom: Capture/Cancel buttons
-- Results overlay: Immediate feedback with next action
+- Split screen desktop: Left brand imagery (workers with tools), right form on white
+- Mobile: Stacked, logo at top
+- Role selection: Large card buttons with worker/customer icons, brown borders, terracotta on selection
 
 ---
 
 ## Images
 
-**Hero Image:** Wide-angle photo of diverse construction workers collaborating on a site (authentic, aspirational), 1920x800px minimum, positioned as background with 60% dark gradient overlay
+**Hero Image:** Wide-angle authentic photo of diverse skilled workers (mason, carpenter, plumber) collaborating on construction site during golden hour, warm sunlight creating approachable atmosphere, 1920x800px minimum, positioned as full-width background with 70% brown gradient overlay (28 45% 15%) for text legibility
 
-**Feature Icons:** Line-style illustrations for AI check, payment, matching - consistent stroke weight
+**Feature Icons:** Custom line illustrations in terracotta color with consistent stroke weight for AI verification, payment security, instant matching
 
-**Worker Profiles:** Square thumbnail images (200x200px) with subtle border-radius
+**Worker Profiles:** Square photos (200x200px) with subtle rounded corners, brown 2px border
 
-**Empty States:** Custom illustrations for "No jobs available", "Complete your profile" - friendly, encouraging tone
+**Empty States:** Warm illustrated graphics (friendly workers holding tools, completion checkmarks) for "No jobs yet", "Complete profile", encouraging tone
 
 ---
 
-## Accessibility & Responsiveness
+## Accessibility
 
-- Minimum tap target: 44x44px
-- Color contrast ratio: 4.5:1 for normal text, 3:1 for large text
-- Focus indicators: 2px solid primary color outline
-- Dark mode: Consistent implementation across all screens including forms
-- Language toggle: Prominent in header, persisted preference
-- Offline indicators: Banner notification when connection lost
-- Screen reader labels: All interactive elements properly labeled
-
-This design system creates a trustworthy, efficient platform optimized for mobile users while maintaining clarity for complex workflows like AI verification and payment processing.
+- Tap targets: 44x44px minimum
+- Contrast: 4.5:1 for normal text, 3:1 for large (validated against warm backgrounds)
+- Focus indicators: 2px terracotta outline on interactive elements
+- Dark mode: Consistent warm brown surface with high contrast text
+- Language toggle: Header dropdown (Hindi/Marathi/English), persisted preference
+- Offline banner: Amber notification when connection lost
+- Screen readers: Semantic HTML, ARIA labels on all controls
