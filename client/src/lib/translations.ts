@@ -88,6 +88,8 @@ export const translations = {
     retakePhoto: "Retake Photo",
     manualReviewRequested: "Manual review requested successfully. You'll be notified of the decision.",
     sobrietyCheckFailed: "Failed to complete sobriety check. Please try again.",
+    cooldownActive: "Cooldown Period Active",
+    cooldownMessage: "You failed the previous sobriety check. Please wait until the cooldown period ends to try again, or request manual review.",
     
     // Laborer Profile Setup
     completeYourProfile: "Complete Your Profile",
@@ -327,6 +329,8 @@ export const translations = {
     retakePhoto: "फिर से फोटो लें",
     manualReviewRequested: "मैन्युअल समीक्षा का अनुरोध सफलतापूर्वक किया गया। आपको निर्णय की सूचना दी जाएगी।",
     sobrietyCheckFailed: "संयम जांच पूरी करने में विफल। कृपया पुन: प्रयास करें।",
+    cooldownActive: "कूलडाउन अवधि सक्रिय",
+    cooldownMessage: "आप पिछली संयम जांच में विफल रहे। कृपया कूलडाउन अवधि समाप्त होने तक प्रतीक्षा करें, या मैन्युअल समीक्षा का अनुरोध करें।",
     
     // Laborer Profile Setup
     completeYourProfile: "अपनी प्रोफ़ाइल पूरी करें",
@@ -566,6 +570,8 @@ export const translations = {
     retakePhoto: "पुन्हा फोटो काढा",
     manualReviewRequested: "मॅन्युअल पुनरावलोकनाची विनंती यशस्वीरित्या केली. तुम्हाला निर्णयाची सूचना दिली जाईल।",
     sobrietyCheckFailed: "संयम तपासणी पूर्ण करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा।",
+    cooldownActive: "कूलडाउन कालावधी सक्रिय",
+    cooldownMessage: "तुम्ही मागील संयम तपासणीत अयशस्वी झाला. कृपया कूलडाउन कालावधी संपेपर्यंत प्रतीक्षा करा, किंवा मॅन्युअल पुनरावलोकनाची विनंती करा।",
     
     // Laborer Profile Setup
     completeYourProfile: "तुमची प्रोफाइल पूर्ण करा",

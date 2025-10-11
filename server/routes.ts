@@ -335,20 +335,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
       // Analyze image with Gemini Vision
-      const prompt = `You are a workplace safety AI assistant. Analyze this selfie to assess if the person is fit to work safely. 
+      const prompt = `You are a strict workplace safety AI assistant. Analyze this selfie to determine if the person is fit for duty. This is a safety-critical assessment.
 
-Evaluate the following indicators of fitness:
-1. Eyes: Clear, focused, and alert (not bloodshot, glazed, or showing extreme dilation)
-2. Posture: Stable head position and good body alignment
-3. Facial Expression: Alert and aware (not confused, disoriented, or showing signs of altered state)
-4. Overall Appearance: Normal skin tone and general wellness
+PRIMARY SAFETY INDICATORS (analyze carefully):
 
-Guidelines:
-- PASS if the person appears alert, focused, and physically fit to work safely
-- FAIL only if there are CLEAR and OBVIOUS signs of impairment (severe bloodshot eyes, extreme disorientation, inability to focus, signs of intoxication)
-- Give benefit of doubt for minor variations in appearance (lighting, tiredness, etc.)
+1. EYE MOVEMENT & FOCUS:
+   - Bloodshot or red eyes (FAIL)
+   - Unusual pupil dilation or constriction (FAIL)
+   - Difficulty focusing or maintaining eye contact (FAIL)
+   - Glazed or "glassy" appearance in eyes (FAIL)
+   - Droopy or heavy eyelids (FAIL)
 
-Respond with a JSON object: { "status": "passed" | "failed", "analysis": "brief explanation of your assessment" }`;
+2. FACIAL EXPRESSION:
+   - Signs of confusion or disorientation (FAIL)
+   - Altered mental state visible in expression (FAIL)
+   - Inappropriate facial expressions for the situation (FAIL)
+   - Lack of alertness or responsiveness (FAIL)
+   - Unusual muscle tension or relaxation (FAIL)
+
+3. HEAD POSITION & STABILITY:
+   - Inability to hold head steady (FAIL)
+   - Signs of swaying or instability (FAIL)
+   - Poor posture control (FAIL)
+   - Head tilting or drooping (FAIL)
+   - Unsteady positioning (FAIL)
+
+4. SKIN COLOR CHANGES:
+   - Unusual flushing of face (FAIL)
+   - Excessive pallor or pale appearance (FAIL)
+   - Other color changes indicating impairment (FAIL)
+   - Visible signs of distress (FAIL)
+
+ASSESSMENT GUIDELINES:
+- PASS only if ALL indicators show the person is CLEARLY alert, focused, and fit for work
+- FAIL if ANY indicator shows potential impairment or safety concern
+- This is safety-critical work - err on the side of caution
+- When in doubt about fitness, FAIL the check
+
+Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detailed explanation citing specific indicators observed" }`;
 
       const result = await genAI.models.generateContent({
         model: "gemini-2.0-flash-exp",

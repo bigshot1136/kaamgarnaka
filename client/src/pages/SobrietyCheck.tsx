@@ -80,13 +80,37 @@ export default function SobrietyCheck() {
       setAnalysisDetails(checkResult.analysisResult || "Analysis complete");
     } catch (error: any) {
       console.error("Sobriety check error:", error);
-      setResult("failed");
-      setAnalysisDetails(error.message || t("sobrietyCheckFailed"));
-      toast({
-        title: t("error"),
-        description: error.message || t("sobrietyCheckFailed"),
-        variant: "destructive",
-      });
+      
+      // Parse error message to check for cooldown
+      let errorData: any = {};
+      try {
+        // Error message format: "403: {json}" - extract the JSON part
+        const jsonMatch = error.message?.match(/\{.*\}/);
+        if (jsonMatch) {
+          errorData = JSON.parse(jsonMatch[0]);
+        }
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+      }
+      
+      // Check if this is a cooldown error
+      if (errorData.error?.includes("Cooldown") || errorData.cooldownUntil) {
+        setResult("failed");
+        setAnalysisDetails(t("cooldownMessage"));
+        toast({
+          title: t("cooldownActive"),
+          description: t("cooldownMessage"),
+          variant: "destructive",
+        });
+      } else {
+        setResult("failed");
+        setAnalysisDetails(errorData.error || error.message || t("sobrietyCheckFailed"));
+        toast({
+          title: t("error"),
+          description: errorData.error || error.message || t("sobrietyCheckFailed"),
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsAnalyzing(false);
     }
