@@ -415,7 +415,7 @@ export default function CustomerDashboard() {
                               <span className="text-xs sm:text-sm text-muted-foreground">{t("totalAmount")}</span>
                               <span className="font-semibold text-sm sm:text-base">₹{totalWithFee}</span>
                             </div>
-                            {job.status === "assigned" && (
+                            {(job.status === "assigned" || job.status === "ready_for_review") && (
                               <Button 
                                 size="sm" 
                                 className="w-full text-xs sm:text-sm h-9 sm:h-10"

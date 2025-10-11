@@ -25,6 +25,12 @@ const statusConfig = {
     variant: "secondary" as const,
     className: "bg-chart-2/20 text-chart-2 border-chart-2/30"
   },
+  ready_for_review: { 
+    icon: AlertCircle, 
+    label: "Ready for Review", 
+    variant: "secondary" as const,
+    className: "bg-chart-4/20 text-chart-4 border-chart-4/30"
+  },
   completed: { 
     icon: CheckCircle2, 
     label: "Completed", 

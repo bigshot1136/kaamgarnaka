@@ -6,7 +6,7 @@ import { z } from "zod";
 
 // Enums
 export const userRoleEnum = pgEnum("user_role", ["customer", "laborer"]);
-export const jobStatusEnum = pgEnum("job_status", ["pending", "assigned", "in_progress", "completed", "cancelled"]);
+export const jobStatusEnum = pgEnum("job_status", ["pending", "assigned", "in_progress", "ready_for_review", "completed", "cancelled"]);
 export const sobrietyStatusEnum = pgEnum("sobriety_status", ["passed", "failed", "pending_review"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed"]);
 export const skillTypeEnum = pgEnum("skill_type", ["mason", "carpenter", "plumber", "painter", "helper"]);

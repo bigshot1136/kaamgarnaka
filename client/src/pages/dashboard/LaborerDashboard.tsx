@@ -106,6 +106,29 @@ export default function LaborerDashboard() {
     setCurrentJobRequest(null);
   };
 
+  // Mark job as ready for review mutation
+  const markReadyMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      return apiRequest("POST", `/api/jobs/${jobId}/ready-for-review`, { laborerId: user?.id });
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: [`/api/jobs/laborer/${user?.id}?status=assigned`] });
+      
+      toast({
+        title: t("success"),
+        description: t("jobMarkedForReview"),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("error"),
+        description: error.message || t("jobMarkFailed"),
+        variant: "destructive",
+      });
+    },
+  });
+
   // Fetch available jobs (pending jobs matching laborer's skills)
   const { data: availableJobs = [] } = useQuery<any[]>({
     queryKey: [`/api/jobs/available/${user?.id}`],
@@ -276,24 +299,35 @@ export default function LaborerDashboard() {
                       return (
                         <div 
                           key={job.id} 
-                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                          className="p-3 bg-muted/50 rounded-lg space-y-3"
                           data-testid={`active-job-${job.id}`}
                         >
-                          <div className="flex items-center gap-3">
-                            <SkillBadge skill={primarySkill as SkillType} />
-                            <div>
-                              <p className="text-sm font-medium">{job.location}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(job.assignedAt).toLocaleDateString()}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <SkillBadge skill={primarySkill as SkillType} />
+                              <div>
+                                <p className="text-sm font-medium">{job.location}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(job.assignedAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold">
+                                ₹{(job.totalAmount || 0) + (job.platformFee || 0)}
                               </p>
+                              <p className="text-xs text-muted-foreground">{t("inProgress")}</p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold">
-                              ₹{(job.totalAmount || 0) + (job.platformFee || 0)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{t("inProgress")}</p>
-                          </div>
+                          <Button 
+                            className="w-full" 
+                            size="sm"
+                            onClick={() => markReadyMutation.mutate(job.id)}
+                            disabled={markReadyMutation.isPending}
+                            data-testid={`button-mark-complete-${job.id}`}
+                          >
+                            {markReadyMutation.isPending ? t("processing") : t("markAsComplete")}
+                          </Button>
                         </div>
                       );
                     })}

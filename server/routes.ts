@@ -263,6 +263,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Laborer marks job as ready for review
+  app.post("/api/jobs/:jobId/ready-for-review", async (req, res) => {
+    try {
+      const { laborerId } = req.body;
+      const job = await storage.getJob(req.params.jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      if (job.status !== "assigned") {
+        return res.status(400).json({ error: "Job is not in assigned status" });
+      }
+
+      if (job.assignedLaborerId !== laborerId) {
+        return res.status(403).json({ error: "You are not assigned to this job" });
+      }
+
+      // Mark job as ready for review
+      const updatedJob = await storage.updateJob(req.params.jobId, {
+        status: "ready_for_review",
+      });
+
+      // TODO: Send notification to customer that job is ready for review
+
+      res.json(updatedJob);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Job completion route - marks job as complete and creates payment
   app.post("/api/jobs/:jobId/complete", async (req, res) => {
     try {
@@ -273,8 +304,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Job not found" });
       }
 
-      if (job.status !== "assigned") {
-        return res.status(400).json({ error: "Job is not assigned or already completed" });
+      if (job.status !== "assigned" && job.status !== "ready_for_review") {
+        return res.status(400).json({ error: "Job is not ready for completion" });
       }
 
       if (!job.assignedLaborerId) {
