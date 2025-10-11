@@ -218,6 +218,28 @@ export const translations = {
     error: "Error",
     success: "Success",
     close: "Close",
+
+    // About page
+    aboutKamgarNaka: "About Kamgar Naka",
+    aboutSubtitle: "Connecting India's skilled workforce with opportunities through technology, safety, and transparency.",
+    ourMission: "Our Mission",
+    ourMissionText: "To empower India's skilled laborers by providing fair, safe, and instant job opportunities while ensuring customers get reliable, verified workers.",
+    ourValues: "Our Values",
+    ourValuesText: "Safety first, transparent pricing, fair wages, and dignity for all workers. We believe in building trust through technology and verified quality.",
+    safetyFirst: "Safety First",
+    safetyFirstText: "Our AI-powered sobriety checks ensure every worker is fit for duty, providing peace of mind for both customers and workers.",
+    communityDriven: "Community Driven",
+    communityDrivenText: "Built for workers, by people who care. We listen to our community and continuously improve based on real feedback and needs.",
+
+    // Contact page
+    contactUs: "Contact Us",
+    contactSubtitle: "Have questions? We're here to help. Reach out to us anytime.",
+    email: "Email",
+    sendEmailAnytime: "Send us an email anytime",
+    phone: "Phone",
+    callUsHours: "Call us Mon-Sat, 9am-6pm",
+    office: "Office",
+    visitOffice: "Visit our main office",
   },
   
   hi: {
@@ -439,6 +461,28 @@ export const translations = {
     error: "त्रुटि",
     success: "सफलता",
     close: "बंद करें",
+
+    // About page
+    aboutKamgarNaka: "कामगार नाका के बारे में",
+    aboutSubtitle: "प्रौद्योगिकी, सुरक्षा और पारदर्शिता के माध्यम से भारत के कुशल कार्यबल को अवसरों से जोड़ना।",
+    ourMission: "हमारा मिशन",
+    ourMissionText: "भारत के कुशल मजदूरों को निष्पक्ष, सुरक्षित और तत्काल नौकरी के अवसर प्रदान करके सशक्त बनाना, साथ ही ग्राहकों को विश्वसनीय, सत्यापित कामगार मिलना सुनिश्चित करना।",
+    ourValues: "हमारे मूल्य",
+    ourValuesText: "सुरक्षा पहले, पारदर्शी मूल्य निर्धारण, उचित मजदूरी, और सभी कामगारों के लिए सम्मान। हम प्रौद्योगिकी और सत्यापित गुणवत्ता के माध्यम से विश्वास बनाने में विश्वास करते हैं।",
+    safetyFirst: "सुरक्षा पहले",
+    safetyFirstText: "हमारी AI-संचालित संयम जांच सुनिश्चित करती है कि प्रत्येक कामगार कर्तव्य के लिए उपयुक्त है, जो ग्राहकों और कामगारों दोनों के लिए मानसिक शांति प्रदान करती है।",
+    communityDriven: "समुदाय संचालित",
+    communityDrivenText: "कामगारों के लिए, देखभाल करने वाले लोगों द्वारा बनाया गया। हम अपने समुदाय की सुनते हैं और वास्तविक प्रतिक्रिया और जरूरतों के आधार पर लगातार सुधार करते हैं।",
+
+    // Contact page
+    contactUs: "हमसे संपर्क करें",
+    contactSubtitle: "क्या आपके कोई प्रश्न हैं? हम मदद के लिए यहां हैं। हमसे कभी भी संपर्क करें।",
+    email: "ईमेल",
+    sendEmailAnytime: "हमें कभी भी ईमेल भेजें",
+    phone: "फ़ोन",
+    callUsHours: "हमें सोमवार-शनिवार, सुबह 9 बजे-शाम 6 बजे कॉल करें",
+    office: "कार्यालय",
+    visitOffice: "हमारे मुख्य कार्यालय पर जाएँ",
   },
   
   mr: {
@@ -660,6 +704,28 @@ export const translations = {
     error: "त्रुटी",
     success: "यश",
     close: "बंद करा",
+
+    // About page
+    aboutKamgarNaka: "कामगार नाका बद्दल",
+    aboutSubtitle: "तंत्रज्ञान, सुरक्षितता आणि पारदर्शकतेद्वारे भारतातील कुशल कार्यबलाला संधींशी जोडणे.",
+    ourMission: "आमचे ध्येय",
+    ourMissionText: "भारतातील कुशल मजुरांना न्याय्य, सुरक्षित आणि तत्काळ नोकरीच्या संधी प्रदान करून सशक्त बनवणे, तसेच ग्राहकांना विश्वसनीय, सत्यापित कामगार मिळतील याची खात्री करणे.",
+    ourValues: "आमची मूल्ये",
+    ourValuesText: "सुरक्षितता प्रथम, पारदर्शक किंमत, न्याय्य वेतन आणि सर्व कामगारांसाठी सन्मान. आम्ही तंत्रज्ञान आणि सत्यापित गुणवत्तेद्वारे विश्वास निर्माण करण्यावर विश्वास ठेवतो.",
+    safetyFirst: "सुरक्षितता प्रथम",
+    safetyFirstText: "आमची AI-चालित संयम तपासणी प्रत्येक कामगार कर्तव्यासाठी योग्य आहे याची खात्री करते, जे ग्राहक आणि कामगार दोघांसाठी मानसिक शांती प्रदान करते.",
+    communityDriven: "समुदाय चालित",
+    communityDrivenText: "कामगारांसाठी, काळजी घेणार्‍या लोकांनी बनवलेले. आम्ही आमच्या समुदायाचे ऐकतो आणि वास्तविक अभिप्राय आणि गरजांच्या आधारे सतत सुधारणा करतो.",
+
+    // Contact page
+    contactUs: "आमच्याशी संपर्क साधा",
+    contactSubtitle: "काही प्रश्न आहेत? आम्ही मदत करण्यासाठी येथे आहोत. आम्हाला कधीही संपर्क करा.",
+    email: "ईमेल",
+    sendEmailAnytime: "आम्हाला कधीही ईमेल पाठवा",
+    phone: "फोन",
+    callUsHours: "आम्हाला सोमवार-शनिवार, सकाळी 9-संध्याकाळी 6 कॉल करा",
+    office: "कार्यालय",
+    visitOffice: "आमच्या मुख्य कार्यालयाला भेट द्या",
   },
 } as const;
 

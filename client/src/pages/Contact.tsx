@@ -2,8 +2,11 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Phone, MapPin } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Contact() {
+  const { t } = useLanguage();
+  
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -12,10 +15,10 @@ export default function Contact() {
         <div className="max-w-4xl mx-auto space-y-12">
           <div className="text-center space-y-4">
             <h1 className="font-display font-bold text-4xl md:text-5xl">
-              Contact Us
+              {t("contactUs")}
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Have questions? We're here to help. Reach out to us anytime.
+              {t("contactSubtitle")}
             </p>
           </div>
 
@@ -25,8 +28,8 @@ export default function Contact() {
                 <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-2">
                   <Mail className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle>Email</CardTitle>
-                <CardDescription>Send us an email anytime</CardDescription>
+                <CardTitle>{t("email")}</CardTitle>
+                <CardDescription>{t("sendEmailAnytime")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <a href="mailto:support@kamgarnaka.in" className="text-primary hover:underline">
@@ -40,8 +43,8 @@ export default function Contact() {
                 <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center mb-2">
                   <Phone className="h-6 w-6 text-secondary" />
                 </div>
-                <CardTitle>Phone</CardTitle>
-                <CardDescription>Call us Mon-Sat, 9am-6pm</CardDescription>
+                <CardTitle>{t("phone")}</CardTitle>
+                <CardDescription>{t("callUsHours")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <a href="tel:+919876543210" className="text-primary hover:underline">
@@ -55,8 +58,8 @@ export default function Contact() {
                 <div className="w-12 h-12 rounded-xl bg-chart-3/20 flex items-center justify-center mb-2">
                   <MapPin className="h-6 w-6 text-chart-3" />
                 </div>
-                <CardTitle>Office</CardTitle>
-                <CardDescription>Visit our main office</CardDescription>
+                <CardTitle>{t("office")}</CardTitle>
+                <CardDescription>{t("visitOffice")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm">
