@@ -1,9 +1,11 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Menu, X, LogOut, User } from "lucide-react";
+import { Menu, X, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,16 +14,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import logoUrl from "@assets/ChatGPT Image Oct 11, 2025, 09_46_43 PM_1760199420625.png";
 
 export function Navbar() {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
 
   const navLinks = [
-    { href: "/", label: "Home" },
-    { href: "/about", label: "About" },
-    { href: "/contact", label: "Contact" },
+    { href: "/", label: t("home") },
+    { href: "/about", label: t("about") },
+    { href: "/contact", label: t("contact") },
   ];
 
   const isActive = (href: string) => location === href;
@@ -31,9 +35,9 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 md:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 hover-elevate active-elevate-2 rounded-md px-2 py-1">
-            <Briefcase className="h-6 w-6 text-primary" />
-            <span className="font-display font-bold text-xl">Kamgar Naka</span>
+          <Link href="/" className="flex items-center gap-3 hover-elevate active-elevate-2 rounded-md px-2 py-1">
+            <img src={logoUrl} alt="Kamgar Naka" className="h-10 w-10 object-contain" />
+            <span className="font-display font-bold text-xl hidden sm:inline">Kamgar Naka</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -53,6 +57,7 @@ export function Navbar() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-2">
+            <LanguageSwitcher />
             <ThemeToggle />
             {user ? (
               <DropdownMenu>
@@ -63,17 +68,17 @@ export function Navbar() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("dashboard")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href={user.role === "customer" ? "/dashboard/customer" : "/dashboard/laborer"}>
-                      Dashboard
+                      {t("dashboard")}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} data-testid="button-signout">
                     <LogOut className="mr-2 h-4 w-4" />
-                    Sign Out
+                    {t("signOut")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -81,12 +86,12 @@ export function Navbar() {
               <>
                 <Link href="/auth/signin">
                   <Button variant="ghost" size="sm" data-testid="button-signin">
-                    Sign In
+                    {t("signIn")}
                   </Button>
                 </Link>
                 <Link href="/auth/get-started">
                   <Button size="sm" data-testid="button-get-started">
-                    Get Started
+                    {t("getStarted")}
                   </Button>
                 </Link>
               </>
@@ -136,7 +141,7 @@ export function Navbar() {
                         className="w-full justify-start"
                         onClick={() => setMobileMenuOpen(false)}
                       >
-                        Dashboard
+                        {t("dashboard")}
                       </Button>
                     </Link>
                     <Button
@@ -149,7 +154,7 @@ export function Navbar() {
                       data-testid="button-mobile-signout"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
-                      Sign Out
+                      {t("signOut")}
                     </Button>
                   </>
                 ) : (
@@ -161,7 +166,7 @@ export function Navbar() {
                         onClick={() => setMobileMenuOpen(false)}
                         data-testid="button-mobile-signin"
                       >
-                        Sign In
+                        {t("signIn")}
                       </Button>
                     </Link>
                     <Link href="/auth/get-started">
@@ -170,7 +175,7 @@ export function Navbar() {
                         onClick={() => setMobileMenuOpen(false)}
                         data-testid="button-mobile-get-started"
                       >
-                        Get Started
+                        {t("getStarted")}
                       </Button>
                     </Link>
                   </>
