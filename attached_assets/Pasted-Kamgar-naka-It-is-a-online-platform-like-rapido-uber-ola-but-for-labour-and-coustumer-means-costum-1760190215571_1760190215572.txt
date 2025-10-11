@@ -1,0 +1,67 @@
+Kamgar naka 
+It is a online platform like rapido uber ola but for labour and coustumer means costumer books 
+the labour for a day at  the cost of daily wages and when the coustumer send the request it eill 
+ring on the labours phone the first to pick will get selected but when selected he need to go un 
+der the soberity cheak ai detection which it made by me and is live on this website:- 
+https://worksafevision-production.up.railway.app/  but implement it in our app in this the 
+gemini ai is used and by the following things  
+Based on the AI analysis system, a worker gets flagged as "not fit for duty" when the Gemini AI 
+detects potential impairment indicators. Here are the specific conditions that can lead to 
+rejection: 
+Primary Safety Indicators Analyzed: 
+1. Eye Movement & Focus Issues: 
+Bloodshot or red eyes 
+Unusual pupil dilation or constriction 
+DiAiculty focusing or maintaining eye contact 
+Glazed or "glassy" appearance in the eyes 
+Droopy or heavy eyelids 
+2. Facial Expression Concerns: 
+Signs of confusion or disorientation 
+Altered mental state visible in expression 
+Inappropriate facial expressions for the situation 
+Lack of alertness or responsiveness 
+Unusual muscle tension or relaxation 
+3. Head Position & Stability: 
+Inability to hold head steady 
+Signs of swaying or instability 
+Poor posture control 
+Head tilting or drooping 
+Unsteady positioning 
+4. Skin Color Changes: 
+Unusual flushing of the face 
+Excessive pallor (pale appearance) 
+Other color changes that might indicate impairment 
+Visible signs of distress 
+if the users passes it will allowed to do job and if if failed its marked for review then the checked 
+and the if pass then pass or else fail till the next 5 -6 hours 
+things in website  
+1.main landing page with a nessacary nav bar things like about , home , contact us ,get 
+Started 
+2.in get started sing in  and sign up and two profile options labours and the costumer with 
+details like name , email id ,number , password .. 
+3.after that for labour  
+ complete the profile  
+1. full name  
+2. Address 
+3. Number and email from prior collection  
+4. skill known like mason, painter, carpenter, plumber (can add the multiple skills (and 
+they will get the matching job request only )) 
+5.Address 
+6.address proof (for security)  
+7.upi id  
+after that I want to fetch the adhar card details from digilocker or just check for the 
+number is it valid using adhar portal (important:- implement if possible and free or else 
+keep only adhar numbers ) 
+4.for costumer 
+ complete the profile 
+1. full name  
+2. Address 
+3. Number and email from prior collection 
+4.address 
+after the matching I want you to give the option on the costumer dashboard he will see the rates 
+of the labour set the prices accordingly  to the government labour rates of india like 700 rs for 
+mason and 400 rs for a helper and a  option to enter the number of labours wanted like in if a 
+coustmer want to hire a mason and 2 helper and let say plumber so there should be options for 
+this so that much laours will be accepted  
+and there should be option of making payment to the labour and a small 10 rs convinence fees 
+should be paid by the costumer and labour and should be collecting in the app 

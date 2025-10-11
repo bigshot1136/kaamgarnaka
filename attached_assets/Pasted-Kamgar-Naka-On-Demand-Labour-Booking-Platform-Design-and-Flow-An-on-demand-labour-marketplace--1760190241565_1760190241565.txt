@@ -1,0 +1,79 @@
+Kamgar Naka: On-Demand Labour Booking Platform – Design and Flow
+An on-demand “labour marketplace” app (like Uber/Rapido for blue-collar workers) would connect customers with labourers for daily-wage jobs. The platform (“Kamgar Naka”) lets customers post a job (e.g. “hire a mason + 2 helpers”), then notifies nearby qualified labourers. The first labourer to accept the request is matched. Before work begins, the selected labourer must pass an AI-based sobriety/fitness check. If he fails, the job is held for review and possibly delayed. Successful hires trigger payment: the customer pays the labourer’s fees (standard government rates, e.g. ₹700/day for mason, ₹400/day for helper) plus a small convenience fee (e.g. ₹10 from both worker and customer) retained by the app.
+ 
+Figure: Example of a blue-collar worker using a smartphone (stock photo) – Labourers use the mobile/web app to receive job requests.
+System Overview & Users
+•	Customer (Employer): Signs up to post labour requests. Sees labour rates (based on Govt. labor wage guidelines) and selects job requirements (e.g. “1 mason, 2 helpers”). Enters number needed for each skill.
+•	Labourer (Worker): Signs up with skill tags (mason, carpenter, plumber, etc.) and profile details (name, address, ID proof). When a job request arrives (via real-time notification), the first labourer to accept it is dispatched. Before starting, the labourer takes an on-camera sobriety check. Only fit labourers (per the AI) are allowed on the job immediately; others are flagged/paused.
+These roles parallel other gig platforms (e.g. ride-hailing or handyman apps). Digital labour platforms have proliferated recently, connecting workers with customers via web/mobile apps[1][2]. Kamgar Naka will be a MERN-stack web app hosted on Replit (React frontend; Node.js/Express backend; MongoDB database). Replit will host the web service (the front-end React app and back-end API). Later a mobile app can be auto-generated (e.g. via a React Native wrapper or PWA).
+Key Features
+•	Landing Page & Navigation: A main landing/home page with navbar (Home, About, Contact, Get Started).
+•	Authentication: “Get Started” leads to Sign In/Sign Up. On signup, user chooses Customer or Labourer role. Basic fields: name, email, phone, password.
+•	Profile Completion:
+•	Labourer Profile: After signup, labourers fill in full profile: full name, current address, phone/email (pre-filled), skill set (multi-select from categories like mason, painter, carpenter, plumber). Upload address proof. Provide UPI ID (for receiving payments). Optionally enter Aadhaar number.
+•	Customer Profile: Customers enter full name, address, phone/email.
+•	Aadhaar/Digilocker: For worker verification, integrate Aadhaar via DigiLocker (ID) if possible. DigiLocker is India’s official cloud wallet for documents[3]. Official APIs require partnership (non-trivial). For an MVP, simply validate the Aadhaar number format. (Full biometric/OTP verification can be added later.) At minimum, store Aadhaar number and address proof upload for security.
+•	Labour Discovery & Booking: Customer selects skill(s) needed and quantity (e.g. 1 mason, 2 helpers). The system matches labourers with those skills. When the customer “books” the job, real-time notifications are sent to available matching labourers (e.g. via WebSockets/Socket.IO). The first labourer to accept the job is assigned. (Realtime libraries like Socket.IO enable low-latency event messaging between server and client[4], so that job alerts “ring” on labourers’ devices instantly.) Once one accepts, the server notifies others that the job is taken.
+•	Sobriety/Fitness Check (AI): Upon accepting a job, the labourer must undergo an AI-based check for impairment. The platform uses a computer-vision model (the user’s “Gemini AI”) via the site WorkSafeVision (https://worksafevision-production.up.railway.app/) to analyze the worker’s face in real time. If the AI detects any impairment indicators (red eyes, erratic gaze, confusion, unsteady head/face, flushed skin, etc.), it flags the worker as “Not Fit for Duty”[5][6]. Studies confirm that vision-based AI can detect intoxication: for example, an AI analyzing RGB video of drivers predicted intoxication levels from facial cues (gaze, head pose, expression) with ~75% accuracy[5][6]. (Similarly, fatigue/drowsiness detection systems use head nodding, yawning and gaze to spot impairment[7].) If the worker passes (no impairment detected), they proceed to the job. If fails, the job is paused for review. In that case, the system may wait ~5–6 hours (as specified) before offering the job again, or escalate for manual check.
+•	Ratings & History: (Optional, but recommended) After job completion, customers can rate labourers. This builds a reputation system (common in gig platforms) and will encourage good behavior.
+Detailed Flow
+1.	Customer Posting a Job: On the Customer Dashboard, the user sees inputs for labour types and counts, plus the hourly/daily rates (pre-filled from govt. rates, e.g. ₹700/day for mason, ₹400/day for helper – updated per latest norms[1]). The customer enters required quantity of each skill. They then submit the booking.
+2.	Notifying Labourers: The backend matches the job to registered labourers with the required skills (and optionally nearby location). The server emits a real-time event (via Socket.IO or similar) to all available matching labourers. On their device, a notification or alert “rings”. (See Samsara’s example: fleet cameras detect driver fatigue in real time; our case is the inverse – workers being alerted for jobs.) Each labourer sees job details and can “Accept.”
+3.	Job Acceptance: The first labourer to click “Accept” triggers a server action to confirm the match. The server informs all others that the job is taken (Socket.IO broadcast). Now the matched labourer proceeds to verification.
+4.	Sobriety Check: The matched labourer is prompted to take a live selfie or short video. This is sent to the AI model (e.g. via an API call to the user’s deployed Gemini AI model). The AI analyzes facial cues (eyes, facial expression, head stability, skin color, etc.) for impairment. If the model returns “Impaired,” the app marks the worker as Not Fit. The job enters a “review” state: possibly notifying the customer that a backup assignment will be needed. The worker can try again later (after 5–6 hours or manual reset). If the model returns “Fit,” the labourer is cleared to start work.
+5.	Work & Payment: On job completion (or at day's end), the customer pays the labourer. The app should support in-app payments. Options:
+6.	UPI Payment: Simplest for MVP – customers pay the labourer directly via the labourer’s UPI ID entered at signup. The app can generate a UPI QR code or deep link with the total amount (wages + convenience fee). Both parties pay the ₹10 fee on the app; this can be implemented by adding ₹10 to the total, then transferring ₹10 to the app’s account and remainder to labourer’s UPI.
+7.	Razorpay Integration: For a more controlled flow, use Razorpay’s Routes/Marketplace APIs. Razorpay allows splitting a single customer payment between the labourer and the platform (for commission)[8][9]. E.g. customer pays ₹(wages + ₹10 + another ₹10), and Razorpay transfers ₹wages to the labourer’s linked bank/UPI and ₹20 to the platform’s account automatically. The labourer would need to be onboarded as a “seller” (via a minimal KYC process) or we could use RazorpayX for payouts via UPI[8]. For a start, simply collecting the labourer’s UPI and doing manual (or RazorpayX batch) payouts is acceptable.
+8.	Data Storage: All data (user accounts, profiles, job requests, matching status, payments) is stored in MongoDB. We’ll have collections like users (with role, name, contact, skills), jobs (customer requests and status), and transactions. Use Mongoose schemas for each.
+9.	Realtime Notifications: Implement Socket.IO in Node/Express backend to push events. On backend:
+const io = new Server(httpServer);
+io.on('connection', socket => {
+  // When customer creates job:
+  socket.on('new_job', jobData => {
+    // Broadcast to all sockets for matching labourers:
+    io.to(jobData.skill).emit('job_alert', jobData);
+  });
+  // When labour accepts:
+  socket.on('accept_job', (jobId, workerId) => {
+    io.emit('job_taken', jobId);
+    // ...assign job...
+  });
+});
+On frontend (React), labour clients join relevant “rooms” for their skills, and listen for job_alert. Example: “Socket.IO enables low-latency, bidirectional event messaging between clients and server”[4].
+1.	Aadhar Verification (Future): In a later version, integrate DigiLocker/Aadhar OTP verification so that labourers’ identities are confirmed by government APIs. Currently, mention “verify Aadhar via DigiLocker” in the spec. DigiLocker is India’s secure platform for authentic ID documents[3]. Full integration requires partnering, so for MVP we store the Aadhar number and optionally upload Aadhar image.
+2.	Convenience Fees & Payments: Platform collects a ₹10 fee from each transaction (from customer and/or labourer). Ensure UI shows this clearly. Use Razorpay/UPI to process payments. For MVP, you can skip automatic transfers and instead show an invoice/QR for manual payment. (E.g. generate a UPI QR for upi://pay?pa=<labourerUPI>&pn=<name>&am=<amount>.) In long term, RazorpayX can push payouts to labourers’ accounts. Razorpay Docs note that Route and Payouts features “automate vendor payouts via UPI, IMPS…”[10][8].
+3.	Deployment on Replit: Develop and host on Replit.com. Replit supports Node.js and has a free MongoDB (via add-ons or linking to Mongo Atlas). React front-end can be served by the Node backend. Note: Replit apps have a certain “sleep” period, so for production a VPS or cloud is better. But for development/demo, Replit is fine. (Since Replit doesn’t do Android, we rely on web/mobile UI or transform it into an Android app later.)
+Technology Stack
+•	Frontend: React (JavaScript/JSX) with React Router for pages. Use form libraries for auth, and a UI library (Material-UI/Bootstrap) for faster development. The labour and customer dashboards can be separate routes/components. Use socket.io-client to connect to the server for real-time job alerts.
+•	Backend: Node.js with Express. REST endpoints for signup/login, profile update, job creation, etc. Use passport or JWT for authentication. Integrate socket.io on the same server for WebSocket endpoints. The sobriety check can be an API route that calls the AI model’s endpoint (e.g. POST /api/check-sobriety takes an image and returns PASS/FAIL).
+•	Database: MongoDB (hosted via Mongo Atlas or Replit’s DB). Collections: Users (fields: name, email, password hash, phone, role, address, skills, UPI, Aadhaar, docs), Jobs (fields: customerID, requiredSkills, quantities, status, acceptedBy, timestamps), Ratings/Reviews, Payments. Use Mongoose for schemas.
+References & Inspiration
+•	Digital Labour Platforms: Platforms like Digital Labour Chowk (DLC) are already connecting Indian workers with employers[11][12]. Gig economy research notes millions of Indian platform workers and growing demand[13]. Such platforms remove middlemen and offer quick hiring.
+•	Realtime Communication: WebSockets (e.g. Socket.IO) are standard for push notifications in web apps[4], allowing us to “ring” labourers’ browsers when a job is posted.
+•	Safety AI: AI models can detect driver intoxication by analyzing facial gaze, head pose, pupil dilation, etc.[5][6]. This validates our approach of a camera-based sobriety check. Similarly, driver-monitoring systems detect fatigue via yawning or head-nodding[7].
+•	Payment Routing: Razorpay’s Route API explicitly supports marketplaces and gig platforms: it can split a payment among multiple recipients (driver/labourer and platform) automatically[8][9]. For a simple implementation, collecting UPI IDs and paying out manually is an alternative.
+Overall, the flow is:
+1.	Customer logs in, enters job details (skills & count), and confirms.
+2.	Server creates a Job entry and broadcasts to skilled labourers via Socket.IO.
+3.	Available labourers receive notification; first to “Accept” triggers an assignment.
+4.	System requests a camera check from the assigned labourer. The Gemini AI (Vision) model analyzes the video; result = Fit/Unfit.
+5.	If Fit, mark job “In Progress” and notify customer. If Unfit, mark job “Flagged” and inform both parties (and re-open job after delay or manual override).
+6.	Upon completion, trigger payment flow: customer pays labourer + convenience fee via integrated payment gateway or UPI. The app takes its fee.
+7.	Optionally, customers rate labourers. Data is saved in MongoDB.
+This specification covers the end-to-end design. The next steps would be to write detailed API schemas, create wireframes for key screens (signup, job posting, labourer dashboard, sobriety check), and then implement the MERN stack code. Throughout, ensure proper security (hash passwords, secure sessions), data validation, and error handling.
+Sources: The above design is informed by existing gig-platforms and research on digital labour and AI safety systems[11][2][14][7][8]. Actual implementation will adapt these ideas to the specific app requirements.
+________________________________________
+[1] [2] [13] digitalplatformsandwomen.ifmrlead.org
+https://digitalplatformsandwomen.ifmrlead.org/wp-content/uploads/2024/02/DP-WEE_Digital-Platforms-and-Labour-Laws-in-India.pdf
+[3] DigiLocker:An Initiative Towards Paperless Governance
+https://www.digilocker.gov.in/
+[4] Building Real-Time Notifications with React, Socket.IO & Node.js | by sathiska sasindu | Medium
+https://medium.com/@sasindusathiska/building-real-time-notifications-with-react-socket-io-node-js-12757a032e0d
+[5] [6] [14] AI-Powered Camera Tech To Detect Drunk Drivers
+https://www.electronicsforu.com/news/ai-powered-camera-tech-to-detect-drunk-drivers
+[7] Drowsiness Detection | Samsara
+https://www.samsara.com/products/cameras/drowsiness-detection
+[8] [9] [10] Route · Split and distribute payments, Automate vendor payouts
+https://razorpay.com/route/
+[11] [12] Hire Construction Workers | India's Blue Collar Job Platform
+https://digitallabourchowk.com/
