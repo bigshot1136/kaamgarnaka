@@ -4,9 +4,18 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { insertUserSchema, insertLaborerProfileSchema, insertJobSchema, insertSobrietyCheckSchema } from "@shared/schema";
 import { GoogleGenAI } from "@google/genai";
+import multer from "multer";
+import path from "path";
+import fs from "fs/promises";
 
 // WebSocket clients map: userId -> WebSocket
 const clients = new Map<string, WebSocket>();
+
+// Set up multer for file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -167,7 +176,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/jobs/laborer/:laborerId", async (req, res) => {
     try {
-      const jobs = await storage.getJobsByLaborer(req.params.laborerId);
+      const status = req.query.status as string | undefined;
+      let jobs = await storage.getJobsByLaborer(req.params.laborerId);
+      
+      // Filter by status if provided (e.g., "completed")
+      if (status) {
+        jobs = jobs.filter(job => job.status === status);
+      }
+      
       res.json(jobs);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -213,6 +229,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(updatedJob);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Job completion route - marks job as complete and creates payment
+  app.post("/api/jobs/:jobId/complete", async (req, res) => {
+    try {
+      const { customerId } = req.body;
+      const job = await storage.getJob(req.params.jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      if (job.status !== "assigned") {
+        return res.status(400).json({ error: "Job is not assigned or already completed" });
+      }
+
+      if (!job.assignedLaborerId) {
+        return res.status(400).json({ error: "No laborer assigned to this job" });
+      }
+
+      // Mark job as completed
+      const completedJob = await storage.updateJob(req.params.jobId, {
+        status: "completed",
+        completedAt: new Date(),
+      });
+
+      // Create payment record
+      const payment = await storage.createPayment({
+        jobId: job.id,
+        laborerId: job.assignedLaborerId,
+        customerId: job.customerId,
+        amount: job.totalAmount,
+        platformFee: job.platformFee,
+        status: "completed",
+        paidAt: new Date(),
+      });
+
+      // Update laborer profile: increment earnings and completed jobs
+      const laborerProfile = await storage.getLaborerProfile(job.assignedLaborerId);
+      if (laborerProfile) {
+        await storage.updateLaborerProfile(job.assignedLaborerId, {
+          totalEarnings: (laborerProfile.totalEarnings || 0) + job.totalAmount,
+          completedJobs: (laborerProfile.completedJobs || 0) + 1,
+          availabilityStatus: "available", // Make laborer available again
+        });
+      }
+
+      res.json({ job: completedJob, payment });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -328,6 +395,15 @@ Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detail
     }
   });
 
+  app.get("/api/payments/customer/:customerId", async (req, res) => {
+    try {
+      const payments = await storage.getPaymentsByCustomer(req.params.customerId);
+      res.json(payments);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/payments/:paymentId", async (req, res) => {
     try {
       const payment = await storage.updatePayment(req.params.paymentId, req.body);
@@ -336,6 +412,37 @@ Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detail
       }
       res.json(payment);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // File upload route for address proof
+  app.post("/api/upload/address-proof", upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const privateDir = process.env.PRIVATE_OBJECT_DIR;
+      if (!privateDir) {
+        throw new Error("Object storage not configured");
+      }
+
+      // Generate unique filename
+      const ext = path.extname(req.file.originalname);
+      const filename = `address-proof-${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+      const filePath = path.join(privateDir, filename);
+
+      // Write file to object storage
+      await fs.writeFile(filePath, req.file.buffer);
+
+      // Return the file path
+      res.json({ 
+        url: filePath,
+        filename: filename
+      });
+    } catch (error: any) {
+      console.error("File upload error:", error);
       res.status(500).json({ error: error.message });
     }
   });

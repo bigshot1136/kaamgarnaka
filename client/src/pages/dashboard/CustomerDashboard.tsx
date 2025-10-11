@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -40,6 +41,32 @@ export default function CustomerDashboard() {
   const { data: customerJobs = [], refetch: refetchJobs } = useQuery({
     queryKey: ["/api/jobs/customer", user?.id],
     enabled: !!user?.id,
+  });
+
+  // Fetch customer's payments to calculate total spending
+  const { data: customerPayments = [] } = useQuery<any[]>({
+    queryKey: [`/api/payments/customer/${user?.id}`],
+    enabled: !!user?.id,
+  });
+
+  // Calculate total spending
+  const totalSpending = customerPayments.reduce((sum, payment) => sum + (payment.amount || 0) + (payment.platformFee || 0), 0);
+
+  // Mark job as complete mutation
+  const completeJobMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      return apiRequest(`/api/jobs/${jobId}/complete`, {
+        method: "POST",
+        body: JSON.stringify({ customerId: user?.id }),
+      });
+    },
+    onSuccess: () => {
+      refetchJobs();
+      alert("Job marked as complete! Payment has been processed.");
+    },
+    onError: (error: any) => {
+      alert(error.message || "Failed to complete job");
+    },
   });
 
   const form = useForm<JobForm>({
@@ -135,20 +162,60 @@ export default function CustomerDashboard() {
       <div className="flex-1 py-8 px-4">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-display font-bold text-3xl">Customer Dashboard</h1>
-              <p className="text-muted-foreground">Post jobs and hire skilled workers</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <Card className="px-6 py-3">
-                <div className="text-sm text-muted-foreground">Total Spent</div>
-                <div className="font-display font-bold text-2xl flex items-center">
-                  <IndianRupee className="h-5 w-5" />
-                  5,280
+          <div>
+            <h1 className="font-display font-bold text-3xl">Customer Dashboard</h1>
+            <p className="text-muted-foreground">Post jobs and hire skilled workers</p>
+          </div>
+
+          {/* Spending Stats */}
+          <div className="grid md:grid-cols-3 gap-4 mb-8">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Total Spending</p>
+                    <div className="font-display font-bold text-2xl" data-testid="text-total-spending">
+                      ₹{totalSpending}
+                    </div>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                    <IndianRupee className="h-6 w-6 text-primary" />
+                  </div>
                 </div>
-              </Card>
-            </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Total Jobs</p>
+                    <div className="font-display font-bold text-2xl" data-testid="text-total-jobs">
+                      {customerJobs.length}
+                    </div>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center">
+                    <Briefcase className="h-6 w-6 text-secondary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Completed Jobs</p>
+                    <div className="font-display font-bold text-2xl" data-testid="text-completed-jobs">
+                      {customerJobs.filter(j => j.status === "completed").length}
+                    </div>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-chart-4/20 flex items-center justify-center">
+                    <Briefcase className="h-6 w-6 text-chart-4" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
@@ -334,6 +401,17 @@ export default function CustomerDashboard() {
                               <span className="text-sm text-muted-foreground">Total Amount</span>
                               <span className="font-semibold">₹{totalWithFee}</span>
                             </div>
+                            {job.status === "assigned" && (
+                              <Button 
+                                size="sm" 
+                                className="w-full mt-3"
+                                onClick={() => completeJobMutation.mutate(job.id)}
+                                disabled={completeJobMutation.isPending}
+                                data-testid={`button-complete-job-${job.id}`}
+                              >
+                                {completeJobMutation.isPending ? "Processing..." : "Mark as Complete"}
+                              </Button>
+                            )}
                           </CardContent>
                         </Card>
                       );

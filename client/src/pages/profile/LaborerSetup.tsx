@@ -48,11 +48,23 @@ export default function LaborerSetup() {
         throw new Error("User not found. Please sign in again.");
       }
 
-      // TODO: Upload address proof to object storage if provided
+      // Upload address proof to object storage if provided
       let addressProofUrl = undefined;
       if (uploadedFile) {
-        // Will be implemented when object storage is set up
-        console.log("File to upload:", uploadedFile.name);
+        const formData = new FormData();
+        formData.append("file", uploadedFile);
+        
+        const uploadResponse = await fetch("/api/upload/address-proof", {
+          method: "POST",
+          body: formData,
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error("Failed to upload address proof");
+        }
+        
+        const uploadResult = await uploadResponse.json();
+        addressProofUrl = uploadResult.url;
       }
 
       const response = await fetch("/api/laborer/profile", {

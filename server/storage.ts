@@ -202,6 +202,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(payments.createdAt));
   }
 
+  async getPaymentsByCustomer(customerId: string): Promise<Payment[]> {
+    return await db
+      .select()
+      .from(payments)
+      .where(eq(payments.customerId, customerId))
+      .orderBy(desc(payments.createdAt));
+  }
+
   async updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined> {
     const result = await db.update(payments).set(updates).where(eq(payments.id, id)).returning();
     return result[0];
