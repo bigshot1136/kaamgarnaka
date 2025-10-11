@@ -335,13 +335,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
       // Analyze image with Gemini Vision
-      const prompt = `Analyze this image for signs of impairment or intoxication. Check for:
-1. Eye movement patterns (redness, dilation, unusual patterns)
-2. Head stability and posture
-3. Skin color abnormalities
-4. Overall alertness and focus
+      const prompt = `You are a workplace safety AI assistant. Analyze this selfie to assess if the person is fit to work safely. 
 
-Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detailed findings" }`;
+Evaluate the following indicators of fitness:
+1. Eyes: Clear, focused, and alert (not bloodshot, glazed, or showing extreme dilation)
+2. Posture: Stable head position and good body alignment
+3. Facial Expression: Alert and aware (not confused, disoriented, or showing signs of altered state)
+4. Overall Appearance: Normal skin tone and general wellness
+
+Guidelines:
+- PASS if the person appears alert, focused, and physically fit to work safely
+- FAIL only if there are CLEAR and OBVIOUS signs of impairment (severe bloodshot eyes, extreme disorientation, inability to focus, signs of intoxication)
+- Give benefit of doubt for minor variations in appearance (lighting, tiredness, etc.)
+
+Respond with a JSON object: { "status": "passed" | "failed", "analysis": "brief explanation of your assessment" }`;
 
       const result = await genAI.models.generateContent({
         model: "gemini-2.0-flash-exp",
@@ -361,7 +368,7 @@ Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detail
         ],
       });
 
-      const responseText = result.response?.text() ?? "";
+      const responseText = result.text ?? "";
       
       // Parse AI response
       let aiResult;
