@@ -13,6 +13,9 @@ import { Navbar } from "@/components/Navbar";
 import { Loader2, Upload, CheckCircle2 } from "lucide-react";
 import { SkillBadge } from "@/components/SkillBadge";
 import { LABOR_RATES, type SkillType } from "@shared/schema";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const laborerSetupSchema = z.object({
   skills: z.array(z.string()).min(1, "Select at least one skill"),
@@ -28,6 +31,8 @@ const skills: SkillType[] = ["mason", "carpenter", "plumber", "painter", "helper
 export default function LaborerSetup() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
@@ -45,7 +50,7 @@ export default function LaborerSetup() {
     
     try {
       if (!user) {
-        throw new Error("User not found. Please sign in again.");
+        throw new Error(t("userNotFound"));
       }
 
       // Upload address proof to object storage if provided
@@ -54,40 +59,35 @@ export default function LaborerSetup() {
         const formData = new FormData();
         formData.append("file", uploadedFile);
         
-        const uploadResponse = await fetch("/api/upload/address-proof", {
-          method: "POST",
-          body: formData,
-        });
-        
-        if (!uploadResponse.ok) {
-          throw new Error("Failed to upload address proof");
+        try {
+          const uploadResult: any = await apiRequest("POST", "/api/upload/address-proof", formData);
+          addressProofUrl = uploadResult.url;
+        } catch (uploadError) {
+          throw new Error(t("uploadFailed"));
         }
-        
-        const uploadResult = await uploadResponse.json();
-        addressProofUrl = uploadResult.url;
       }
 
-      const response = await fetch("/api/laborer/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-          skills: data.skills,
-          upiId: data.upiId,
-          aadhaarNumber: data.aadhaarNumber,
-          addressProofUrl,
-        }),
+      await apiRequest("POST", "/api/laborer/profile", {
+        userId: user.id,
+        skills: data.skills,
+        upiId: data.upiId,
+        aadhaarNumber: data.aadhaarNumber,
+        addressProofUrl,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Profile creation failed");
-      }
-
+      toast({
+        title: t("success"),
+        description: t("profileCreatedSuccess"),
+      });
+      
       setLocation("/dashboard/laborer");
     } catch (error: any) {
       console.error("Profile setup error:", error);
-      alert(error.message || "Profile setup failed. Please try again.");
+      toast({
+        title: t("error"),
+        description: error.message || t("profileSetupFailed"),
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -102,17 +102,17 @@ export default function LaborerSetup() {
       <div className="flex-1 py-12 px-4">
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="space-y-2">
-            <h1 className="font-display font-bold text-3xl">Complete Your Profile</h1>
+            <h1 className="font-display font-bold text-3xl">{t("completeYourProfile")}</h1>
             <p className="text-muted-foreground">
-              Provide your skills and verification details to start receiving job offers
+              {t("provideSkillsVerification")}
             </p>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Worker Information</CardTitle>
+              <CardTitle>{t("workerInformation")}</CardTitle>
               <CardDescription>
-                This information helps us match you with the right jobs
+                {t("helpsMatchJobs")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -124,9 +124,9 @@ export default function LaborerSetup() {
                     name="skills"
                     render={() => (
                       <FormItem>
-                        <FormLabel className="text-base">Your Skills</FormLabel>
+                        <FormLabel className="text-base">{t("yourSkills")}</FormLabel>
                         <FormDescription>
-                          Select all skills you have (you'll only get matching job requests)
+                          {t("selectAllSkills")}
                         </FormDescription>
                         <div className="grid grid-cols-2 gap-4 mt-2">
                           {skills.map((skill) => (
@@ -151,7 +151,7 @@ export default function LaborerSetup() {
                                   <div className="flex flex-col gap-1">
                                     <SkillBadge skill={skill} />
                                     <span className="text-xs text-muted-foreground">
-                                      ₹{LABOR_RATES[skill]}/day
+                                      ₹{LABOR_RATES[skill]}{t("perDay")}
                                     </span>
                                   </div>
                                 </FormItem>
@@ -170,12 +170,12 @@ export default function LaborerSetup() {
                     name="upiId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>UPI ID</FormLabel>
+                        <FormLabel>{t("upiIdLabel")}</FormLabel>
                         <FormDescription>
-                          Your UPI ID for receiving payments (e.g., 9876543210@paytm)
+                          {t("upiIdDescription")}
                         </FormDescription>
                         <FormControl>
-                          <Input placeholder="yourname@upi" data-testid="input-upi" {...field} />
+                          <Input placeholder={t("upiIdPlaceholder")} data-testid="input-upi" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -188,12 +188,12 @@ export default function LaborerSetup() {
                     name="aadhaarNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Aadhaar Number</FormLabel>
+                        <FormLabel>{t("aadhaarNumberLabel")}</FormLabel>
                         <FormDescription>
-                          For identity verification (12 digits)
+                          {t("aadhaarDescription")}
                         </FormDescription>
                         <FormControl>
-                          <Input placeholder="123456789012" data-testid="input-aadhaar" {...field} />
+                          <Input placeholder={t("aadhaarPlaceholder")} data-testid="input-aadhaar" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -206,9 +206,9 @@ export default function LaborerSetup() {
                     name="addressProof"
                     render={({ field: { onChange, value, ...field } }) => (
                       <FormItem>
-                        <FormLabel>Address Proof (Optional)</FormLabel>
+                        <FormLabel>{t("addressProofLabel")}</FormLabel>
                         <FormDescription>
-                          Upload Aadhaar card, voter ID, or any government ID
+                          {t("addressProofDescription")}
                         </FormDescription>
                         <FormControl>
                           <div className="space-y-2">
@@ -237,7 +237,7 @@ export default function LaborerSetup() {
 
                   <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-complete-profile">
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Complete Profile
+                    {t("completeProfile")}
                   </Button>
                 </form>
               </Form>
