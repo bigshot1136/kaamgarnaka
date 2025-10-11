@@ -146,16 +146,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const skillsNeeded = validatedData.skillsNeeded as any[];
       const uniqueSkills = [...new Set(skillsNeeded.map(s => s.skill))];
       
+      console.log(`[Job Matching] Looking for laborers with skills:`, uniqueSkills);
+      
       const matchingLaborers: string[] = [];
       for (const skill of uniqueSkills) {
         const laborers = await storage.getLaborersBySkill(skill);
+        console.log(`[Job Matching] Found ${laborers.length} laborers with skill '${skill}'`);
         laborers.forEach(laborer => {
+          console.log(`[Job Matching] Laborer ${laborer.userId}: available=${laborer.availabilityStatus}`);
           if (laborer.availabilityStatus === "available" && !matchingLaborers.includes(laborer.userId)) {
             matchingLaborers.push(laborer.userId);
           }
         });
       }
 
+      console.log(`[Job Matching] Total matching laborers: ${matchingLaborers.length}`, matchingLaborers);
+      console.log(`[WebSocket] Connected clients:`, Array.from(clients.keys()));
+      
       // Notify all matching laborers
       notifyLaborers(matchingLaborers, job);
 
@@ -266,7 +273,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: job.totalAmount,
         platformFee: job.platformFee,
         status: "completed",
-        paidAt: new Date(),
       });
 
       // Update laborer profile: increment earnings and completed jobs

@@ -27,10 +27,21 @@ export default function LaborerDashboard() {
   const [currentJobRequest, setCurrentJobRequest] = useState<any>(null);
 
   // Fetch laborer profile from database
-  const { data: laborerProfile } = useQuery<any>({
+  const { data: laborerProfile, isError: profileError, error: profileFetchError } = useQuery<any>({
     queryKey: [`/api/laborer/profile/${user?.id}`],
     enabled: !!user?.id && user?.role === "laborer",
+    retry: false, // Don't retry on 404
   });
+
+  // Redirect to profile setup if profile doesn't exist
+  useEffect(() => {
+    if (profileError && profileFetchError) {
+      const error = profileFetchError as any;
+      if (error?.message?.includes('Profile not found') || error?.message?.includes('404')) {
+        setLocation("/profile/laborer-setup");
+      }
+    }
+  }, [profileError, profileFetchError, setLocation]);
 
   useEffect(() => {
     if (!user) return;
@@ -319,7 +330,7 @@ export default function LaborerDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-2">
-                  {(laborerProfile?.skills || []).map((skill) => (
+                  {(laborerProfile?.skills || []).map((skill: string) => (
                     <SkillBadge key={skill} skill={skill as SkillType} />
                   ))}
                 </div>
