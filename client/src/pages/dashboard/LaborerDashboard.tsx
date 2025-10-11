@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { SkillBadge } from "@/components/SkillBadge";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   IndianRupee, 
   Briefcase, 
@@ -23,6 +26,8 @@ export default function LaborerDashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { subscribe } = useWebSocket();
+  const { t } = useLanguage();
+  const { toast } = useToast();
   const [hasNewJobRequest, setHasNewJobRequest] = useState(false);
   const [currentJobRequest, setCurrentJobRequest] = useState<any>(null);
 
@@ -62,30 +67,38 @@ export default function LaborerDashboard() {
     return unsubscribe;
   }, [subscribe, user]);
 
-  const handleAcceptJob = async () => {
-    if (!currentJobRequest || !user) return;
-
-    try {
-
-      const response = await fetch(`/api/jobs/${currentJobRequest.id}/accept`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ laborerId: user.id }),
+  // Accept job mutation
+  const acceptJobMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      return apiRequest("POST", `/api/jobs/${jobId}/accept`, { laborerId: user?.id });
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: [`/api/jobs/available/${user?.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/jobs/laborer/${user?.id}?status=assigned`] });
+      
+      toast({
+        title: t("success"),
+        description: t("jobAcceptedSuccess"),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to accept job");
-      }
-
-      // Redirect to sobriety check
-      setLocation("/sobriety-check");
-    } catch (error: any) {
-      console.error("Accept job error:", error);
-      alert(error.message || "Failed to accept job. It may have been assigned to another worker.");
       setHasNewJobRequest(false);
       setCurrentJobRequest(null);
-    }
+      setLocation("/sobriety-check");
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("error"),
+        description: error.message || t("jobAcceptedError"),
+        variant: "destructive",
+      });
+      setHasNewJobRequest(false);
+      setCurrentJobRequest(null);
+    },
+  });
+
+  const handleAcceptJob = async () => {
+    if (!currentJobRequest || !user) return;
+    acceptJobMutation.mutate(currentJobRequest.id);
   };
 
   const handleDeclineJob = () => {
@@ -121,15 +134,15 @@ export default function LaborerDashboard() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-display font-bold text-3xl">Worker Dashboard</h1>
-              <p className="text-muted-foreground">Manage your jobs and earnings</p>
+              <h1 className="font-display font-bold text-3xl" data-testid="heading-worker-dashboard">{t("workerDashboard")}</h1>
+              <p className="text-muted-foreground">{t("manageJobsEarnings")}</p>
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge status={laborerProfile?.availabilityStatus || "available"} />
               {laborerProfile?.isVerified && (
                 <div className="flex items-center gap-1 px-3 py-1.5 bg-chart-3/20 text-chart-3 rounded-md text-sm font-medium">
                   <CheckCircle2 className="h-4 w-4" />
-                  Verified
+                  {t("verified")}
                 </div>
               )}
             </div>
@@ -141,7 +154,7 @@ export default function LaborerDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Total Earnings</p>
+                    <p className="text-sm text-muted-foreground mb-1">{t("totalEarnings")}</p>
                     <div className="font-display font-bold text-2xl flex items-center" data-testid="text-total-earnings">
                       <IndianRupee className="h-5 w-5" />
                       {(laborerProfile?.totalEarnings || 0).toLocaleString()}
@@ -158,7 +171,7 @@ export default function LaborerDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Jobs Completed</p>
+                    <p className="text-sm text-muted-foreground mb-1">{t("completedJobs")}</p>
                     <div className="font-display font-bold text-2xl" data-testid="text-completed-jobs">
                       {laborerProfile?.completedJobs || 0}
                     </div>
@@ -174,7 +187,7 @@ export default function LaborerDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Rating</p>
+                    <p className="text-sm text-muted-foreground mb-1">{t("rating")}</p>
                     <div className="font-display font-bold text-2xl flex items-center gap-1">
                       {(laborerProfile?.rating || 5).toFixed(1)}
                       <Star className="h-5 w-5 text-chart-4 fill-chart-4" />
@@ -192,16 +205,16 @@ export default function LaborerDashboard() {
             {/* Available Jobs */}
             <Card>
               <CardHeader>
-                <CardTitle>Available Jobs</CardTitle>
+                <CardTitle>{t("availableJobs")}</CardTitle>
                 <CardDescription>
-                  Jobs matching your skills - First to accept gets the job
+                  {t("firstToAccept")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {availableJobs.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      No jobs available right now
+                      {t("noJobsAvailable")}
                     </p>
                   ) : (
                     availableJobs.map((job: any) => {
@@ -220,7 +233,7 @@ export default function LaborerDashboard() {
                               <div>
                                 <p className="text-sm font-medium">{job.location}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  Posted: {new Date(job.createdAt).toLocaleTimeString()}
+                                  {new Date(job.createdAt).toLocaleTimeString()}
                                 </p>
                               </div>
                             </div>
@@ -231,27 +244,11 @@ export default function LaborerDashboard() {
                           <Button 
                             className="w-full" 
                             size="sm"
-                            onClick={async () => {
-                              try {
-                                const response = await fetch(`/api/jobs/${job.id}/accept`, {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ laborerId: user?.id }),
-                                });
-
-                                if (!response.ok) {
-                                  const error = await response.json();
-                                  throw new Error(error.error || "Failed to accept job");
-                                }
-
-                                setLocation("/sobriety-check");
-                              } catch (error: any) {
-                                alert(error.message || "Failed to accept job");
-                              }
-                            }}
+                            onClick={() => acceptJobMutation.mutate(job.id)}
+                            disabled={acceptJobMutation.isPending}
                             data-testid={`button-accept-job-${job.id}`}
                           >
-                            Accept Job
+                            {acceptJobMutation.isPending ? t("processing") : t("acceptJob")}
                           </Button>
                         </div>
                       );
@@ -265,9 +262,9 @@ export default function LaborerDashboard() {
             {assignedJobs.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Active Jobs</CardTitle>
+                  <CardTitle>{t("activeJobs")}</CardTitle>
                   <CardDescription>
-                    Jobs you're currently working on
+                    {t("currentlyWorkingOn")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -287,7 +284,7 @@ export default function LaborerDashboard() {
                             <div>
                               <p className="text-sm font-medium">{job.location}</p>
                               <p className="text-xs text-muted-foreground">
-                                Started: {new Date(job.assignedAt).toLocaleDateString()}
+                                {new Date(job.assignedAt).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
@@ -295,7 +292,7 @@ export default function LaborerDashboard() {
                             <p className="font-semibold">
                               ₹{(job.totalAmount || 0) + (job.platformFee || 0)}
                             </p>
-                            <p className="text-xs text-muted-foreground">In Progress</p>
+                            <p className="text-xs text-muted-foreground">{t("inProgress")}</p>
                           </div>
                         </div>
                       );
@@ -312,25 +309,25 @@ export default function LaborerDashboard() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <Bell className="h-5 w-5 animate-pulse text-secondary" />
-                      New Job Request!
+                      {t("newJobRequest")}
                     </CardTitle>
                     <div className="flex items-center gap-1 px-3 py-1 bg-chart-4/20 text-chart-4 rounded-md text-sm font-medium">
                       <Clock className="h-3 w-3" />
-                      60s left
+                      {t("timeLeft")}
                     </div>
                   </div>
                   <CardDescription>
-                    First to accept gets the job
+                    {t("firstToAccept")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Location</span>
+                      <span className="text-sm text-muted-foreground">{t("location")}</span>
                       <span className="font-medium">{currentJobRequest?.location}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Skills Needed</span>
+                      <span className="text-sm text-muted-foreground">{t("skillsNeeded")}</span>
                       <div className="flex gap-2">
                         {currentJobRequest?.skillsNeeded?.map((req: any, idx: number) => (
                           <SkillBadge key={idx} skill={req.skill as SkillType} />
@@ -338,7 +335,7 @@ export default function LaborerDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Your Earnings</span>
+                      <span className="text-sm text-muted-foreground">{t("yourEarnings")}</span>
                       <span className="font-bold text-lg">₹{currentJobRequest?.totalAmount}</span>
                     </div>
                   </div>
@@ -348,9 +345,10 @@ export default function LaborerDashboard() {
                       variant="secondary" 
                       className="flex-1" 
                       onClick={handleAcceptJob}
+                      disabled={acceptJobMutation.isPending}
                       data-testid="button-accept-job"
                     >
-                      Accept Job
+                      {acceptJobMutation.isPending ? t("processing") : t("acceptJob")}
                     </Button>
                     <Button 
                       variant="outline" 
@@ -358,7 +356,7 @@ export default function LaborerDashboard() {
                       onClick={handleDeclineJob}
                       data-testid="button-decline-job"
                     >
-                      Decline
+                      {t("decline")}
                     </Button>
                   </div>
                 </CardContent>
@@ -368,33 +366,33 @@ export default function LaborerDashboard() {
             {/* Earnings & Withdrawal */}
             <Card>
               <CardHeader>
-                <CardTitle>Earnings & Withdrawal</CardTitle>
+                <CardTitle>{t("earningsWithdrawal")}</CardTitle>
                 <CardDescription>
-                  Your payment information
+                  {t("paymentInfo")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 bg-chart-3/10 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Available Balance</span>
+                    <span className="text-sm text-muted-foreground">{t("availableBalance")}</span>
                     <span className="font-display font-bold text-xl flex items-center">
                       <IndianRupee className="h-4 w-4" />
                       {laborerProfile?.totalEarnings || 0}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">UPI ID</span>
-                    <span className="font-mono text-sm">{laborerProfile?.upiId || "Not set"}</span>
+                    <span className="text-sm text-muted-foreground">{t("upiId")}</span>
+                    <span className="font-mono text-sm">{laborerProfile?.upiId || t("notSet")}</span>
                   </div>
                 </div>
 
                 <Button className="w-full" data-testid="button-withdraw">
                   <IndianRupee className="mr-2 h-4 w-4" />
-                  Withdraw to UPI
+                  {t("withdrawToUpi")}
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  Platform fee: ₹10 per job • Instant UPI transfer
+                  {t("platformFeeInfo")}
                 </p>
               </CardContent>
             </Card>
@@ -402,9 +400,9 @@ export default function LaborerDashboard() {
             {/* Skills & Profile */}
             <Card>
               <CardHeader>
-                <CardTitle>Your Skills</CardTitle>
+                <CardTitle>{t("yourSkills")}</CardTitle>
                 <CardDescription>
-                  You'll receive job requests for these skills
+                  {t("receiveJobsForSkills")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -414,7 +412,7 @@ export default function LaborerDashboard() {
                   ))}
                 </div>
                 <Button variant="outline" className="w-full" data-testid="button-edit-skills">
-                  Edit Skills
+                  {t("editSkills")}
                 </Button>
               </CardContent>
             </Card>
@@ -422,16 +420,16 @@ export default function LaborerDashboard() {
             {/* Job History */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Jobs</CardTitle>
+                <CardTitle>{t("recentJobs")}</CardTitle>
                 <CardDescription>
-                  Your completed work history
+                  {t("completedWorkHistory")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {completedJobs.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      No completed jobs yet
+                      {t("noCompletedJobs")}
                     </p>
                   ) : (
                     completedJobs.slice(0, 5).map((job: any) => {
