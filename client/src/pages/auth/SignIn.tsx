@@ -10,7 +10,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
 import { Link } from "wouter";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Lock, LogIn } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
 
 const signInSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -23,6 +25,8 @@ export default function SignIn() {
   const [, setLocation] = useLocation();
   const { setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useLanguage();
+  const { toast } = useToast();
 
   const form = useForm<SignInForm>({
     resolver: zodResolver(signInSchema),
@@ -60,35 +64,45 @@ export default function SignIn() {
       }
     } catch (error: any) {
       console.error("Sign in error:", error);
-      alert(error.message || "Sign in failed. Please try again.");
+      toast({
+        title: t("error"),
+        description: error.message || t("signinFailed"),
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-muted/20 to-background">
       <Navbar />
       
-      <div className="flex-1 flex items-center justify-center py-12 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl font-display">Welcome Back</CardTitle>
-            <CardDescription>
-              Sign in to your Kamgar Naka account
+      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
+        <Card className="w-full max-w-md border-2 shadow-xl">
+          <CardHeader className="space-y-3 text-center pb-8">
+            <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto shadow-lg">
+              <LogIn className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl md:text-3xl font-display">{t("welcomeBack")}</CardTitle>
+            <CardDescription className="text-base">
+              {t("signInToAccount")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t("email")}</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="john@example.com" data-testid="input-signin-email" {...field} />
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                          <Input type="email" placeholder={t("enterEmail")} className="pl-10" data-testid="input-signin-email" {...field} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -100,27 +114,32 @@ export default function SignIn() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel>{t("password")}</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="••••••••" data-testid="input-signin-password" {...field} />
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                          <Input type="password" placeholder={t("enterPassword")} className="pl-10" data-testid="input-signin-password" {...field} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-signin-submit">
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Sign In
+                <Button type="submit" className="w-full" disabled={isLoading} size="lg" data-testid="button-signin-submit">
+                  {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                  {t("signIn")}
                 </Button>
               </form>
             </Form>
 
-            <div className="mt-6 text-center text-sm">
+            <div className="mt-6 text-center text-sm md:text-base">
               <p className="text-muted-foreground">
-                Don't have an account?{" "}
+                {t("dontHaveAccount")}{" "}
                 <Link href="/auth/get-started">
-                  <a className="text-primary hover:underline font-medium">Sign up</a>
+                  <a className="text-primary hover:underline font-semibold" data-testid="link-signup">
+                    {t("signUp")}
+                  </a>
                 </Link>
               </p>
             </div>

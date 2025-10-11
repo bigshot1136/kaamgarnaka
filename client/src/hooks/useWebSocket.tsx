@@ -24,9 +24,12 @@ export function WebSocketProvider({ children, userId }: { children: ReactNode; u
     }
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+    const host = port ? `${hostname}:${port}` : hostname;
+    const wsUrl = `${protocol}//${host}/ws`;
     
-    console.log("WebSocket: Connecting for user", userId);
+    console.log("WebSocket: Connecting to", wsUrl, "for user", userId);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

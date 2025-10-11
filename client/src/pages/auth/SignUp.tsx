@@ -10,7 +10,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
 import { Link } from "wouter";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Lock, User, Phone, MapPin, Briefcase, Users } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
 
 const signUpSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -28,6 +30,8 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const params = new URLSearchParams(window.location.search);
   const role = params.get("role") || "customer";
+  const { t } = useLanguage();
+  const { toast } = useToast();
 
   const form = useForm<SignUpForm>({
     resolver: zodResolver(signUpSchema),
@@ -67,22 +71,32 @@ export default function SignUp() {
       }
     } catch (error: any) {
       console.error("Signup error:", error);
-      alert(error.message || "Signup failed. Please try again.");
+      toast({
+        title: t("error"),
+        description: error.message || t("signupFailed"),
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const roleIcon = role === "customer" ? <Briefcase className="h-6 w-6 text-primary" /> : <Users className="h-6 w-6 text-secondary" />;
+  const roleColor = role === "customer" ? "primary" : "secondary";
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-muted/20 to-background">
       <Navbar />
       
-      <div className="flex-1 flex items-center justify-center py-12 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl font-display">Create Account</CardTitle>
-            <CardDescription>
-              Sign up as a {role === "customer" ? "Customer" : "Worker"}
+      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
+        <Card className="w-full max-w-lg border-2 shadow-xl">
+          <CardHeader className="space-y-3 text-center pb-8">
+            <div className={`w-16 h-16 rounded-2xl bg-${roleColor}/20 flex items-center justify-center mx-auto shadow-lg`}>
+              {roleIcon}
+            </div>
+            <CardTitle className="text-2xl md:text-3xl font-display">{t("createAccount")}</CardTitle>
+            <CardDescription className="text-base">
+              {t("signUpAs")} {role === "customer" ? t("customer") : t("laborer")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -93,9 +107,12 @@ export default function SignUp() {
                   name="fullName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                      <FormLabel>{t("fullName")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" data-testid="input-fullname" {...field} />
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                          <Input placeholder={t("enterFullName")} className="pl-10" data-testid="input-fullname" {...field} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -107,9 +124,12 @@ export default function SignUp() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t("email")}</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="john@example.com" data-testid="input-email" {...field} />
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                          <Input type="email" placeholder={t("enterEmail")} className="pl-10" data-testid="input-email" {...field} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -121,9 +141,12 @@ export default function SignUp() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>{t("phoneNumber")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="9876543210" data-testid="input-phone" {...field} />
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                          <Input placeholder={t("enterPhone")} className="pl-10" data-testid="input-phone" {...field} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -135,9 +158,12 @@ export default function SignUp() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel>{t("password")}</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="••••••••" data-testid="input-password" {...field} />
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                          <Input type="password" placeholder={t("enterPassword")} className="pl-10" data-testid="input-password" {...field} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -149,27 +175,32 @@ export default function SignUp() {
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address</FormLabel>
+                      <FormLabel>{t("address")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="123 Main St, Mumbai" data-testid="input-address" {...field} />
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                          <Input placeholder={t("enterAddress")} className="pl-10" data-testid="input-address" {...field} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-signup-submit">
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Account
+                <Button type="submit" className="w-full" disabled={isLoading} size="lg" data-testid="button-signup-submit">
+                  {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                  {t("createAccount")}
                 </Button>
               </form>
             </Form>
 
-            <div className="mt-6 text-center text-sm">
+            <div className="mt-6 text-center text-sm md:text-base">
               <p className="text-muted-foreground">
-                Already have an account?{" "}
+                {t("alreadyHaveAccount")}{" "}
                 <Link href="/auth/signin">
-                  <a className="text-primary hover:underline font-medium">Sign in</a>
+                  <a className="text-primary hover:underline font-semibold" data-testid="link-signin">
+                    {t("signIn")}
+                  </a>
                 </Link>
               </p>
             </div>
