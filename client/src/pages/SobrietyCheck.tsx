@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
@@ -8,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function SobrietyCheck() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [result, setResult] = useState<"passed" | "failed" | null>(null);
@@ -58,18 +60,36 @@ export default function SobrietyCheck() {
   const analyzeImage = async (imageData: string) => {
     setIsAnalyzing(true);
     
-    // Simulate AI analysis (will be replaced with real Gemini API in Task 2)
-    setTimeout(() => {
-      // Mock result - 80% chance of passing
-      const passed = Math.random() > 0.2;
-      setResult(passed ? "passed" : "failed");
-      setAnalysisDetails(
-        passed 
-          ? "No impairment indicators detected. Worker appears fit for duty."
-          : "Potential impairment indicators detected: Unusual eye movement patterns. Flagged for review."
-      );
+    try {
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      const response = await fetch("/api/sobriety-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          laborerId: user.id,
+          imageDataUrl: imageData,
+          status: "pending_review", // Will be updated by AI
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Sobriety check failed");
+      }
+
+      const checkResult = await response.json();
+      setResult(checkResult.status);
+      setAnalysisDetails(checkResult.analysisResult || "Analysis complete");
+    } catch (error: any) {
+      console.error("Sobriety check error:", error);
+      setResult("failed");
+      setAnalysisDetails(error.message || "Failed to complete sobriety check. Please try again.");
+    } finally {
       setIsAnalyzing(false);
-    }, 3000);
+    }
   };
 
   const retakePhoto = () => {

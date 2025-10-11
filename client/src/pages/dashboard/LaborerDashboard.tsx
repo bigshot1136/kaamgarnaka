@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { SkillBadge } from "@/components/SkillBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { 
@@ -16,7 +19,11 @@ import {
 import type { SkillType } from "@shared/schema";
 
 export default function LaborerDashboard() {
-  const [hasNewJobRequest, setHasNewJobRequest] = useState(true);
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const { subscribe } = useWebSocket();
+  const [hasNewJobRequest, setHasNewJobRequest] = useState(false);
+  const [currentJobRequest, setCurrentJobRequest] = useState<any>(null);
 
   // Mock data
   const mockProfile = {
@@ -28,14 +35,54 @@ export default function LaborerDashboard() {
     availabilityStatus: "available",
   };
 
-  const mockJobRequest = {
-    id: "req-1",
-    customerName: "Rajesh Kumar",
-    location: "Andheri, Mumbai",
-    skills: ["mason"],
-    quantity: 1,
-    amount: 710,
-    timeLeft: 45, // seconds
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = subscribe((data) => {
+      if (data.type === "new_job") {
+        console.log("Received new job notification:", data.job);
+        setCurrentJobRequest(data.job);
+        setHasNewJobRequest(true);
+        // Auto-dismiss after 60 seconds
+        setTimeout(() => {
+          setHasNewJobRequest(false);
+          setCurrentJobRequest(null);
+        }, 60000);
+      }
+    });
+
+    return unsubscribe;
+  }, [subscribe, user]);
+
+  const handleAcceptJob = async () => {
+    if (!currentJobRequest || !user) return;
+
+    try {
+
+      const response = await fetch(`/api/jobs/${currentJobRequest.id}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ laborerId: user.id }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to accept job");
+      }
+
+      // Redirect to sobriety check
+      setLocation("/sobriety-check");
+    } catch (error: any) {
+      console.error("Accept job error:", error);
+      alert(error.message || "Failed to accept job. It may have been assigned to another worker.");
+      setHasNewJobRequest(false);
+      setCurrentJobRequest(null);
+    }
+  };
+
+  const handleDeclineJob = () => {
+    setHasNewJobRequest(false);
+    setCurrentJobRequest(null);
   };
 
   const mockCompletedJobs = [
@@ -141,24 +188,20 @@ export default function LaborerDashboard() {
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Customer</span>
-                      <span className="font-medium">{mockJobRequest.customerName}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Location</span>
-                      <span className="font-medium">{mockJobRequest.location}</span>
+                      <span className="font-medium">{currentJobRequest?.location}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Skills Needed</span>
                       <div className="flex gap-2">
-                        {mockJobRequest.skills.map((skill) => (
-                          <SkillBadge key={skill} skill={skill as SkillType} />
+                        {currentJobRequest?.skillsNeeded?.map((req: any, idx: number) => (
+                          <SkillBadge key={idx} skill={req.skill as SkillType} />
                         ))}
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Your Earnings</span>
-                      <span className="font-bold text-lg">₹{mockJobRequest.amount}</span>
+                      <span className="font-bold text-lg">₹{currentJobRequest?.totalAmount}</span>
                     </div>
                   </div>
 
@@ -166,7 +209,7 @@ export default function LaborerDashboard() {
                     <Button 
                       variant="secondary" 
                       className="flex-1" 
-                      onClick={() => setHasNewJobRequest(false)}
+                      onClick={handleAcceptJob}
                       data-testid="button-accept-job"
                     >
                       Accept Job
@@ -174,7 +217,7 @@ export default function LaborerDashboard() {
                     <Button 
                       variant="outline" 
                       className="flex-1"
-                      onClick={() => setHasNewJobRequest(false)}
+                      onClick={handleDeclineJob}
                       data-testid="button-decline-job"
                     >
                       Decline

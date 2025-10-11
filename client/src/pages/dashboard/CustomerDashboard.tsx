@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -29,6 +30,7 @@ type JobForm = z.infer<typeof jobSchema>;
 const skills: SkillType[] = ["mason", "carpenter", "plumber", "painter", "helper"];
 
 export default function CustomerDashboard() {
+  const { user } = useAuth();
   const [skillRequirements, setSkillRequirements] = useState<JobSkillRequirement[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillType | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,14 +84,39 @@ export default function CustomerDashboard() {
 
   const onSubmit = async (data: JobForm) => {
     setIsSubmitting(true);
-    // Will be connected to backend in Task 3
-    console.log(data);
     
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      if (!user) {
+        throw new Error("User not found. Please sign in again.");
+      }
+
+      const response = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: user.id,
+          location: data.location,
+          skillsNeeded: skillRequirements,
+          totalAmount: finalAmount - platformFee,
+          platformFee,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Job posting failed");
+      }
+
+      // Success - reset form
       setSkillRequirements([]);
       form.reset();
-    }, 1000);
+      alert("Job posted successfully! Notifying nearby workers...");
+    } catch (error: any) {
+      console.error("Job posting error:", error);
+      alert(error.message || "Failed to post job. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Mock active jobs

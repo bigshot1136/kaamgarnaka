@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,6 +27,7 @@ const skills: SkillType[] = ["mason", "carpenter", "plumber", "painter", "helper
 
 export default function LaborerSetup() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
@@ -40,12 +42,43 @@ export default function LaborerSetup() {
 
   const onSubmit = async (data: LaborerSetupForm) => {
     setIsLoading(true);
-    // Will be connected to backend in Task 3
-    console.log(data);
     
-    setTimeout(() => {
+    try {
+      if (!user) {
+        throw new Error("User not found. Please sign in again.");
+      }
+
+      // TODO: Upload address proof to object storage if provided
+      let addressProofUrl = undefined;
+      if (uploadedFile) {
+        // Will be implemented when object storage is set up
+        console.log("File to upload:", uploadedFile.name);
+      }
+
+      const response = await fetch("/api/laborer/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          skills: data.skills,
+          upiId: data.upiId,
+          aadhaarNumber: data.aadhaarNumber,
+          addressProofUrl,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Profile creation failed");
+      }
+
       setLocation("/dashboard/laborer");
-    }, 1000);
+    } catch (error: any) {
+      console.error("Profile setup error:", error);
+      alert(error.message || "Profile setup failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const selectedSkills = form.watch("skills");

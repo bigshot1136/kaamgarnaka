@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,6 +21,7 @@ type SignInForm = z.infer<typeof signInSchema>;
 
 export default function SignIn() {
   const [, setLocation] = useLocation();
+  const { setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<SignInForm>({
@@ -32,13 +34,36 @@ export default function SignIn() {
 
   const onSubmit = async (data: SignInForm) => {
     setIsLoading(true);
-    // Will be connected to backend in Task 3
-    console.log(data);
     
-    setTimeout(() => {
-      // Mock: redirect to customer dashboard
-      setLocation("/dashboard/customer");
-    }, 1000);
+    try {
+      const response = await fetch("/api/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Sign in failed");
+      }
+
+      const user = await response.json();
+      
+      // Update auth context (this also stores in localStorage)
+      setUser(user);
+
+      // Redirect based on role
+      if (user.role === "laborer") {
+        setLocation("/dashboard/laborer");
+      } else {
+        setLocation("/dashboard/customer");
+      }
+    } catch (error: any) {
+      console.error("Sign in error:", error);
+      alert(error.message || "Sign in failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { insertUserSchema, insertLaborerProfileSchema, insertJobSchema, insertSobrietyCheckSchema } from "@shared/schema";
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 // WebSocket clients map: userId -> WebSocket
 const clients = new Map<string, WebSocket>();
@@ -237,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("GEMINI_API_KEY not configured");
       }
 
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
       // Analyze image with Gemini Vision
