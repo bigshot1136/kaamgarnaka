@@ -6,10 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 import { Camera, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SobrietyCheck() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [result, setResult] = useState<"passed" | "failed" | null>(null);
@@ -65,28 +70,23 @@ export default function SobrietyCheck() {
         throw new Error("User not found");
       }
 
-      const response = await fetch("/api/sobriety-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          laborerId: user.id,
-          imageDataUrl: imageData,
-          status: "pending_review", // Will be updated by AI
-        }),
+      const checkResult: any = await apiRequest("POST", "/api/sobriety-check", {
+        laborerId: user.id,
+        imageDataUrl: imageData,
+        status: "pending_review",
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Sobriety check failed");
-      }
-
-      const checkResult = await response.json();
       setResult(checkResult.status);
       setAnalysisDetails(checkResult.analysisResult || "Analysis complete");
     } catch (error: any) {
       console.error("Sobriety check error:", error);
       setResult("failed");
-      setAnalysisDetails(error.message || "Failed to complete sobriety check. Please try again.");
+      setAnalysisDetails(error.message || t("sobrietyCheckFailed"));
+      toast({
+        title: t("error"),
+        description: error.message || t("sobrietyCheckFailed"),
+        variant: "destructive",
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -112,17 +112,17 @@ export default function SobrietyCheck() {
       <div className="flex-1 py-12 px-4">
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="text-center space-y-2">
-            <h1 className="font-display font-bold text-3xl">AI Safety Verification</h1>
+            <h1 className="font-display font-bold text-3xl">{t("aiSafetyVerification")}</h1>
             <p className="text-muted-foreground">
-              Complete the sobriety check to confirm you're fit for duty
+              {t("completeSobrietyCheck")}
             </p>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Camera Check</CardTitle>
+              <CardTitle>{t("cameraCheck")}</CardTitle>
               <CardDescription>
-                Look directly at the camera and ensure good lighting
+                {t("lookDirectlyAtCamera")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -132,10 +132,10 @@ export default function SobrietyCheck() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     <ul className="list-disc list-inside space-y-1 text-sm">
-                      <li>Face the camera directly</li>
-                      <li>Ensure good lighting on your face</li>
-                      <li>Remove any headwear or sunglasses</li>
-                      <li>Look at the camera steadily</li>
+                      <li>{t("faceCameraDirectly")}</li>
+                      <li>{t("ensureGoodLighting")}</li>
+                      <li>{t("removeHeadwear")}</li>
+                      <li>{t("lookSteadily")}</li>
                     </ul>
                   </AlertDescription>
                 </Alert>
@@ -171,7 +171,7 @@ export default function SobrietyCheck() {
                   <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
                     <div className="text-center space-y-3">
                       <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-                      <p className="font-medium">Analyzing facial cues...</p>
+                      <p className="font-medium">{t("analyzingFacialCues")}</p>
                     </div>
                   </div>
                 )}
@@ -191,12 +191,12 @@ export default function SobrietyCheck() {
                   <AlertDescription>
                     <div className="space-y-2">
                       <p className="font-semibold">
-                        {result === "passed" ? "Verification Passed" : "Verification Failed"}
+                        {result === "passed" ? t("verificationPassed") : t("verificationFailed")}
                       </p>
                       <p className="text-sm">{analysisDetails}</p>
                       {result === "failed" && (
                         <p className="text-sm text-muted-foreground mt-2">
-                          You can retry after 5-6 hours or request manual review.
+                          {t("retryAfter5Hours")}
                         </p>
                       )}
                     </div>
@@ -215,7 +215,7 @@ export default function SobrietyCheck() {
                       data-testid="button-start-camera"
                     >
                       <Camera className="mr-2 h-4 w-4" />
-                      Start Camera
+                      {t("startCamera")}
                     </Button>
                     <Button 
                       className="flex-1"
@@ -223,7 +223,7 @@ export default function SobrietyCheck() {
                       disabled={!stream}
                       data-testid="button-capture"
                     >
-                      Capture Photo
+                      {t("capturePhoto")}
                     </Button>
                   </>
                 )}
@@ -235,7 +235,7 @@ export default function SobrietyCheck() {
                     data-testid="button-proceed"
                   >
                     <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Proceed to Job
+                    {t("proceedToJob")}
                   </Button>
                 )}
 
@@ -246,23 +246,27 @@ export default function SobrietyCheck() {
                       className="flex-1"
                       onClick={async () => {
                         try {
-                          const response = await fetch("/api/sobriety-check/request-review", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ laborerId: user?.id }),
+                          await apiRequest("POST", "/api/sobriety-check/request-review", { 
+                            laborerId: user?.id 
                           });
                           
-                          if (response.ok) {
-                            alert("Manual review requested successfully. You'll be notified of the decision.");
-                            setLocation("/dashboard/laborer");
-                          }
+                          toast({
+                            title: t("success"),
+                            description: t("manualReviewRequested"),
+                          });
+                          setLocation("/dashboard/laborer");
                         } catch (error) {
                           console.error("Failed to request review:", error);
+                          toast({
+                            title: t("error"),
+                            description: t("sobrietyCheckFailed"),
+                            variant: "destructive",
+                          });
                         }
                       }}
                       data-testid="button-request-review"
                     >
-                      Request Manual Review
+                      {t("requestManualReview")}
                     </Button>
                     <Button 
                       variant="outline"
@@ -270,7 +274,7 @@ export default function SobrietyCheck() {
                       onClick={() => setLocation("/dashboard/laborer")}
                       data-testid="button-back-dashboard"
                     >
-                      Back to Dashboard
+                      {t("backToDashboard")}
                     </Button>
                   </>
                 )}
@@ -282,7 +286,7 @@ export default function SobrietyCheck() {
                     disabled={isAnalyzing}
                     data-testid="button-retake"
                   >
-                    Retake Photo
+                    {t("retakePhoto")}
                   </Button>
                 )}
               </div>
