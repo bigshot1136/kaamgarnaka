@@ -52,9 +52,9 @@
 
   --primary-foreground: 220 85% 98%;
 
-  --secondary: 220 8% 90%;
+  --secondary: 25 95% 50%;
 
-  --secondary-foreground: 220 15% 25%;
+  --secondary-foreground: 0 0% 100%;
 
   --muted: 220 10% 93%;
 
@@ -76,7 +76,8 @@
   --chart-4: 45 95% 55%;
   --chart-5: 280 70% 50%;
 
-  --font-sans: Open Sans, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Poppins', system-ui, -apple-system, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: .5rem; /* 8px */
@@ -170,9 +171,9 @@
 
   --primary-foreground: 220 80% 10%;
 
-  --secondary: 220 12% 24%;
+  --secondary: 25 90% 60%;
 
-  --secondary-foreground: 0 0% 95%;
+  --secondary-foreground: 0 0% 100%;
 
   --muted: 220 12% 20%;
 
