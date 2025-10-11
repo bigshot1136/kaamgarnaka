@@ -37,6 +37,7 @@ export interface IStorage {
   getJob(id: string): Promise<Job | undefined>;
   getJobsByCustomer(customerId: string): Promise<Job[]>;
   getJobsByLaborer(laborerId: string): Promise<Job[]>;
+  getAvailableJobsForLaborer(laborerId: string): Promise<Job[]>;
   updateJob(id: string, updates: Partial<Job>): Promise<Job | undefined>;
   getPendingJobs(): Promise<Job[]>;
 
@@ -145,6 +146,29 @@ export class DatabaseStorage implements IStorage {
       .from(jobs)
       .where(eq(jobs.assignedLaborerId, laborerId))
       .orderBy(desc(jobs.createdAt));
+  }
+
+  async getAvailableJobsForLaborer(laborerId: string): Promise<Job[]> {
+    // Get laborer's profile to check their skills
+    const profile = await this.getLaborerProfile(laborerId);
+    if (!profile || !profile.skills || profile.skills.length === 0) {
+      return [];
+    }
+
+    // Get all pending jobs
+    const pendingJobs = await db
+      .select()
+      .from(jobs)
+      .where(eq(jobs.status, "pending"))
+      .orderBy(desc(jobs.createdAt));
+
+    // Filter jobs that match laborer's skills
+    return pendingJobs.filter(job => {
+      const skillsNeeded = job.skillsNeeded as any[];
+      return skillsNeeded.some((skillReq: any) => 
+        profile.skills?.includes(skillReq.skill)
+      );
+    });
   }
 
   async updateJob(id: string, updates: Partial<Job>): Promise<Job | undefined> {

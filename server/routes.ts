@@ -209,6 +209,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get available jobs for a laborer (pending jobs matching their skills)
+  app.get("/api/jobs/available/:laborerId", async (req, res) => {
+    try {
+      const jobs = await storage.getAvailableJobsForLaborer(req.params.laborerId);
+      res.json(jobs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/jobs/:jobId", async (req, res) => {
     try {
       const job = await storage.updateJob(req.params.jobId, req.body);

@@ -93,6 +93,13 @@ export default function LaborerDashboard() {
     setCurrentJobRequest(null);
   };
 
+  // Fetch available jobs (pending jobs matching laborer's skills)
+  const { data: availableJobs = [] } = useQuery<any[]>({
+    queryKey: [`/api/jobs/available/${user?.id}`],
+    enabled: !!user?.id && user?.role === "laborer" && !!laborerProfile,
+    refetchInterval: 5000, // Poll every 5 seconds for new jobs
+  });
+
   // Fetch laborer's assigned jobs (active)
   const { data: assignedJobs = [] } = useQuery<any[]>({
     queryKey: [`/api/jobs/laborer/${user?.id}?status=assigned`],
@@ -182,6 +189,78 @@ export default function LaborerDashboard() {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
+            {/* Available Jobs */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Available Jobs</CardTitle>
+                <CardDescription>
+                  Jobs matching your skills - First to accept gets the job
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {availableJobs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No jobs available right now
+                    </p>
+                  ) : (
+                    availableJobs.map((job: any) => {
+                      const skillsNeeded = job.skillsNeeded || [];
+                      const primarySkill = skillsNeeded[0]?.skill || "helper";
+                      
+                      return (
+                        <div 
+                          key={job.id} 
+                          className="p-4 bg-muted/50 rounded-lg space-y-3"
+                          data-testid={`available-job-${job.id}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <SkillBadge skill={primarySkill as SkillType} />
+                              <div>
+                                <p className="text-sm font-medium">{job.location}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Posted: {new Date(job.createdAt).toLocaleTimeString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-lg">₹{job.totalAmount}</p>
+                            </div>
+                          </div>
+                          <Button 
+                            className="w-full" 
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(`/api/jobs/${job.id}/accept`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ laborerId: user?.id }),
+                                });
+
+                                if (!response.ok) {
+                                  const error = await response.json();
+                                  throw new Error(error.error || "Failed to accept job");
+                                }
+
+                                setLocation("/sobriety-check");
+                              } catch (error: any) {
+                                alert(error.message || "Failed to accept job");
+                              }
+                            }}
+                            data-testid={`button-accept-job-${job.id}`}
+                          >
+                            Accept Job
+                          </Button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Assigned Jobs (Active Work) */}
             {assignedJobs.length > 0 && (
               <Card>
