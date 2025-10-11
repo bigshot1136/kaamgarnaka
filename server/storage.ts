@@ -1,38 +1,211 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { eq, and, desc, sql } from "drizzle-orm";
+import { db } from "./db";
+import {
+  type User,
+  type InsertUser,
+  type LaborerProfile,
+  type InsertLaborerProfile,
+  type Job,
+  type InsertJob,
+  type SobrietyCheck,
+  type InsertSobrietyCheck,
+  type Payment,
+  type InsertPayment,
+  users,
+  laborerProfiles,
+  jobs,
+  sobrietyChecks,
+  payments,
+} from "@shared/schema";
+import bcrypt from "bcrypt";
 
 export interface IStorage {
+  // User methods
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  verifyPassword(email: string, password: string): Promise<User | null>;
+
+  // Laborer Profile methods
+  getLaborerProfile(userId: string): Promise<LaborerProfile | undefined>;
+  createLaborerProfile(profile: InsertLaborerProfile): Promise<LaborerProfile>;
+  updateLaborerProfile(userId: string, updates: Partial<LaborerProfile>): Promise<LaborerProfile | undefined>;
+  getLaborersBySkill(skill: string): Promise<(LaborerProfile & { user: User })[]>;
+
+  // Job methods
+  createJob(job: InsertJob): Promise<Job>;
+  getJob(id: string): Promise<Job | undefined>;
+  getJobsByCustomer(customerId: string): Promise<Job[]>;
+  getJobsByLaborer(laborerId: string): Promise<Job[]>;
+  updateJob(id: string, updates: Partial<Job>): Promise<Job | undefined>;
+  getPendingJobs(): Promise<Job[]>;
+
+  // Sobriety Check methods
+  createSobrietyCheck(check: InsertSobrietyCheck): Promise<SobrietyCheck>;
+  getLatestSobrietyCheck(laborerId: string): Promise<SobrietyCheck | undefined>;
+  updateSobrietyCheck(id: string, updates: Partial<SobrietyCheck>): Promise<SobrietyCheck | undefined>;
+
+  // Payment methods
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  getPaymentsByLaborer(laborerId: string): Promise<Payment[]>;
+  updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
+  // User methods
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const hashedPassword = await bcrypt.hash(insertUser.password, 10);
+    const result = await db
+      .insert(users)
+      .values({ ...insertUser, password: hashedPassword })
+      .returning();
+    return result[0];
+  }
+
+  async verifyPassword(email: string, password: string): Promise<User | null> {
+    const user = await this.getUserByEmail(email);
+    if (!user) return null;
+
+    const isValid = await bcrypt.compare(password, user.password);
+    return isValid ? user : null;
+  }
+
+  // Laborer Profile methods
+  async getLaborerProfile(userId: string): Promise<LaborerProfile | undefined> {
+    const result = await db
+      .select()
+      .from(laborerProfiles)
+      .where(eq(laborerProfiles.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+
+  async createLaborerProfile(profile: InsertLaborerProfile): Promise<LaborerProfile> {
+    const result = await db.insert(laborerProfiles).values(profile).returning();
+    return result[0];
+  }
+
+  async updateLaborerProfile(
+    userId: string,
+    updates: Partial<LaborerProfile>
+  ): Promise<LaborerProfile | undefined> {
+    const result = await db
+      .update(laborerProfiles)
+      .set(updates)
+      .where(eq(laborerProfiles.userId, userId))
+      .returning();
+    return result[0];
+  }
+
+  async getLaborersBySkill(skill: string): Promise<(LaborerProfile & { user: User })[]> {
+    const result = await db
+      .select()
+      .from(laborerProfiles)
+      .leftJoin(users, eq(laborerProfiles.userId, users.id))
+      .where(sql`${laborerProfiles.skills} @> ARRAY[${skill}]::text[]`);
+
+    return result.map((row) => ({
+      ...row.laborer_profiles,
+      user: row.users!,
+    }));
+  }
+
+  // Job methods
+  async createJob(job: InsertJob): Promise<Job> {
+    const result = await db.insert(jobs).values(job).returning();
+    return result[0];
+  }
+
+  async getJob(id: string): Promise<Job | undefined> {
+    const result = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getJobsByCustomer(customerId: string): Promise<Job[]> {
+    return await db
+      .select()
+      .from(jobs)
+      .where(eq(jobs.customerId, customerId))
+      .orderBy(desc(jobs.createdAt));
+  }
+
+  async getJobsByLaborer(laborerId: string): Promise<Job[]> {
+    return await db
+      .select()
+      .from(jobs)
+      .where(eq(jobs.assignedLaborerId, laborerId))
+      .orderBy(desc(jobs.createdAt));
+  }
+
+  async updateJob(id: string, updates: Partial<Job>): Promise<Job | undefined> {
+    const result = await db.update(jobs).set(updates).where(eq(jobs.id, id)).returning();
+    return result[0];
+  }
+
+  async getPendingJobs(): Promise<Job[]> {
+    return await db
+      .select()
+      .from(jobs)
+      .where(eq(jobs.status, "pending"))
+      .orderBy(desc(jobs.createdAt));
+  }
+
+  // Sobriety Check methods
+  async createSobrietyCheck(check: InsertSobrietyCheck): Promise<SobrietyCheck> {
+    const result = await db.insert(sobrietyChecks).values(check).returning();
+    return result[0];
+  }
+
+  async getLatestSobrietyCheck(laborerId: string): Promise<SobrietyCheck | undefined> {
+    const result = await db
+      .select()
+      .from(sobrietyChecks)
+      .where(eq(sobrietyChecks.laborerId, laborerId))
+      .orderBy(desc(sobrietyChecks.checkedAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateSobrietyCheck(
+    id: string,
+    updates: Partial<SobrietyCheck>
+  ): Promise<SobrietyCheck | undefined> {
+    const result = await db
+      .update(sobrietyChecks)
+      .set(updates)
+      .where(eq(sobrietyChecks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Payment methods
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const result = await db.insert(payments).values(payment).returning();
+    return result[0];
+  }
+
+  async getPaymentsByLaborer(laborerId: string): Promise<Payment[]> {
+    return await db
+      .select()
+      .from(payments)
+      .where(eq(payments.laborerId, laborerId))
+      .orderBy(desc(payments.createdAt));
+  }
+
+  async updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined> {
+    const result = await db.update(payments).set(updates).where(eq(payments.id, id)).returning();
+    return result[0];
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
