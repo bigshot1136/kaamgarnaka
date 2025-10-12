@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: "customer" | "laborer";
+  requiredRole?: "customer" | "laborer" | "admin";
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
@@ -20,7 +20,12 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
       setLocation("/auth/signin");
     } else if (!isLoading && requiredRole && effectiveUser?.role !== requiredRole) {
       // Redirect to appropriate dashboard if wrong role
-      setLocation(effectiveUser?.role === "customer" ? "/dashboard/customer" : "/dashboard/laborer");
+      const dashboardPath = effectiveUser?.role === "customer" 
+        ? "/dashboard/customer" 
+        : effectiveUser?.role === "admin" 
+        ? "/dashboard/admin" 
+        : "/dashboard/laborer";
+      setLocation(dashboardPath);
     }
   }, [effectiveUser, isLoading, requiredRole, setLocation]);
 

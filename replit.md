@@ -101,12 +101,23 @@ Preferred communication style: Simple, everyday language.
 - Email/password-based authentication
 - Bcrypt for password hashing (salt rounds: 10)
 - Session storage in localStorage (client-side)
-- Role-based access control (customer vs laborer)
+- Role-based access control (customer, laborer, admin)
+
+**⚠️ CRITICAL SECURITY LIMITATION:**
+- **Current auth is CLIENT-SIDE ONLY** - uses localStorage without server-side session management
+- **Admin routes use x-user-id header** - can be spoofed by malicious clients
+- **NOT PRODUCTION-READY** - requires implementing:
+  - Server-side session management (express-session or JWT)
+  - Secure session cookies with HttpOnly flag
+  - CSRF protection
+  - Proper authentication middleware tied to session tokens
+- **Current implementation is for DEVELOPMENT/TESTING ONLY**
 
 **Protected Routes:**
-- Role-specific dashboards enforce user type requirements
+- Role-specific dashboards enforce user type requirements (client-side only)
 - Profile setup pages accessible only to appropriate user types
 - Automatic redirection based on authentication state and role
+- Admin dashboard (/dashboard/admin) requires admin role (⚠️ not secure without proper auth)
 
 ### AI Integration
 

@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
@@ -628,10 +629,26 @@ Be thorough but fair in your assessment. Only fail cases where there are clear i
     }
   });
 
+  // Middleware to check admin authentication
+  const requireAdmin = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const userId = req.headers['x-user-id'] as string;
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized - No user ID provided" });
+    }
+
+    const user = await storage.getUser(userId);
+    
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden - Admin access required" });
+    }
+
+    next();
+  };
+
   // Admin routes for sobriety check management
-  app.get("/api/admin/sobriety-checks", async (req, res) => {
+  app.get("/api/admin/sobriety-checks", requireAdmin, async (req, res) => {
     try {
-      // TODO: Add admin authentication check here
       const checks = await storage.getAllSobrietyChecks();
       res.json(checks);
     } catch (error: any) {
@@ -639,9 +656,8 @@ Be thorough but fair in your assessment. Only fail cases where there are clear i
     }
   });
 
-  app.post("/api/admin/sobriety-check/:checkId/approve", async (req, res) => {
+  app.post("/api/admin/sobriety-check/:checkId/approve", requireAdmin, async (req, res) => {
     try {
-      // TODO: Add admin authentication check here
       const { checkId } = req.params;
       
       const check = await storage.getSobrietyCheck(checkId);
@@ -671,9 +687,8 @@ Be thorough but fair in your assessment. Only fail cases where there are clear i
     }
   });
 
-  app.post("/api/admin/sobriety-check/:checkId/reject", async (req, res) => {
+  app.post("/api/admin/sobriety-check/:checkId/reject", requireAdmin, async (req, res) => {
     try {
-      // TODO: Add admin authentication check here
       const { checkId } = req.params;
       const { reason } = req.body;
       
