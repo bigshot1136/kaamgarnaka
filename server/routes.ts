@@ -460,12 +460,28 @@ Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detail
         ],
       });
 
-      const responseText = result.text ?? "";
+      // Extract response text from Gemini API response
+      let responseText = "";
+      try {
+        if (result.response && typeof result.response.text === 'function') {
+          responseText = await result.response.text();
+        } else if (result.candidates && result.candidates[0]) {
+          responseText = result.candidates[0].content.parts[0].text || "";
+        } else {
+          responseText = JSON.stringify(result);
+        }
+      } catch (error) {
+        console.error("Error extracting Gemini response:", error);
+        responseText = JSON.stringify(result);
+      }
+      console.log("Gemini AI Response:", responseText);
       
-      // Parse AI response
+      // Parse AI response - handle both JSON and markdown wrapped JSON
       let aiResult;
       try {
-        aiResult = JSON.parse(responseText);
+        // Remove markdown code blocks if present
+        const cleanedText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        aiResult = JSON.parse(cleanedText);
       } catch {
         // Fallback if AI doesn't return proper JSON
         aiResult = {
@@ -473,6 +489,8 @@ Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detail
           analysis: responseText,
         };
       }
+      
+      console.log("Sobriety Check Result:", aiResult);
 
       // Set cooldown if failed (5-6 hours)
       const cooldownUntil = aiResult.status === "failed" 

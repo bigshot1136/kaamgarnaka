@@ -14,9 +14,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
 import { SkillBadge } from "@/components/SkillBadge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Plus, Minus, IndianRupee, Loader2, Briefcase, CheckCircle2 } from "lucide-react";
+import { Plus, Minus, IndianRupee, Loader2, Briefcase, CheckCircle2, CreditCard } from "lucide-react";
 import { LABOR_RATES, type SkillType, type JobSkillRequirement, type Job } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const jobSchema = z.object({
   location: z.string().min(5, "Location is required"),
@@ -46,6 +54,8 @@ export default function CustomerDashboard() {
   const [skillRequirements, setSkillRequirements] = useState<JobSkillRequirement[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillType | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedJobForPayment, setSelectedJobForPayment] = useState<Job | null>(null);
 
   // Fetch customer's jobs
   const { data: customerJobs = [], refetch: refetchJobs } = useQuery<Job[]>({
@@ -419,11 +429,14 @@ export default function CustomerDashboard() {
                               <Button 
                                 size="sm" 
                                 className="w-full text-xs sm:text-sm h-9 sm:h-10"
-                                onClick={() => completeJobMutation.mutate(job.id)}
-                                disabled={completeJobMutation.isPending}
-                                data-testid={`button-complete-job-${job.id}`}
+                                onClick={() => {
+                                  setSelectedJobForPayment(job);
+                                  setPaymentDialogOpen(true);
+                                }}
+                                data-testid={`button-pay-job-${job.id}`}
                               >
-                                {completeJobMutation.isPending ? t("processing") : t("markAsComplete")}
+                                <CreditCard className="mr-2 h-4 w-4" />
+                                {t("payNow")}
                               </Button>
                             )}
                           </CardContent>
@@ -437,6 +450,99 @@ export default function CustomerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("paymentConfirmation")}</DialogTitle>
+            <DialogDescription>
+              {t("reviewPaymentDetails")}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedJobForPayment && (
+            <div className="space-y-4">
+              {/* Job Details */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">{t("jobDetails")}</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(selectedJobForPayment.skillsNeeded as JobSkillRequirement[] | undefined)?.map((req) => (
+                    <SkillBadge key={req.skill} skill={req.skill as SkillType} />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground">{selectedJobForPayment.location}</p>
+              </div>
+
+              {/* Payment Breakdown */}
+              <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+                <div className="flex justify-between text-sm">
+                  <span>{t("laborCost")}</span>
+                  <span className="font-medium">₹{selectedJobForPayment.totalAmount}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>{t("platformFee")}</span>
+                  <span className="font-medium">₹{selectedJobForPayment.platformFee || 10}</span>
+                </div>
+                <div className="h-px bg-border my-2"></div>
+                <div className="flex justify-between font-semibold">
+                  <span>{t("totalToPay")}</span>
+                  <span className="flex items-center">
+                    <IndianRupee className="h-4 w-4" />
+                    {(selectedJobForPayment.totalAmount || 0) + (selectedJobForPayment.platformFee || 10)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Options */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">{t("paymentMethod")}</h4>
+                <p className="text-xs text-muted-foreground">
+                  {t("upiPaymentInfo")}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPaymentDialogOpen(false);
+                setSelectedJobForPayment(null);
+              }}
+              className="w-full sm:w-auto"
+              data-testid="button-cancel-payment"
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedJobForPayment) {
+                  completeJobMutation.mutate(selectedJobForPayment.id);
+                  setPaymentDialogOpen(false);
+                  setSelectedJobForPayment(null);
+                }
+              }}
+              disabled={completeJobMutation.isPending}
+              className="w-full sm:w-auto"
+              data-testid="button-confirm-payment"
+            >
+              {completeJobMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("processing")}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  {t("confirmPayment")}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

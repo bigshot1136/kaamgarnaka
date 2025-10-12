@@ -420,7 +420,11 @@ export default function LaborerDashboard() {
                   </div>
                 </div>
 
-                <Button className="w-full" data-testid="button-withdraw">
+                <Button 
+                  className="w-full" 
+                  data-testid="button-withdraw"
+                  onClick={() => setLocation("/wallet")}
+                >
                   <IndianRupee className="mr-2 h-4 w-4" />
                   {t("withdrawToUpi")}
                 </Button>

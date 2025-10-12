@@ -297,6 +297,17 @@ export const translations = {
     minimumWithdrawalAmount: "Minimum withdrawal amount is ₹100",
     insufficientBalance: "Insufficient balance",
     pleaseAddBankAccountFirst: "Please add bank account details first",
+    
+    // Payment
+    payNow: "Pay Now",
+    paymentConfirmation: "Payment Confirmation",
+    reviewPaymentDetails: "Review payment details before confirming",
+    jobDetails: "Job Details",
+    laborCost: "Labor Cost",
+    totalToPay: "Total to Pay",
+    paymentMethod: "Payment Method",
+    upiPaymentInfo: "Payment will be processed via UPI. Platform fee of ₹10 included.",
+    confirmPayment: "Confirm Payment",
   },
   
   hi: {
@@ -597,6 +608,17 @@ export const translations = {
     minimumWithdrawalAmount: "न्यूनतम निकासी राशि ₹100 है",
     insufficientBalance: "अपर्याप्त शेष",
     pleaseAddBankAccountFirst: "कृपया पहले बैंक खाते का विवरण जोड़ें",
+    
+    // Payment
+    payNow: "अभी भुगतान करें",
+    paymentConfirmation: "भुगतान की पुष्टि",
+    reviewPaymentDetails: "पुष्टि करने से पहले भुगतान विवरण की समीक्षा करें",
+    jobDetails: "नौकरी का विवरण",
+    laborCost: "श्रम लागत",
+    totalToPay: "कुल भुगतान",
+    paymentMethod: "भुगतान विधि",
+    upiPaymentInfo: "भुगतान UPI के माध्यम से संसाधित किया जाएगा। ₹10 का प्लेटफ़ॉर्म शुल्क शामिल है।",
+    confirmPayment: "भुगतान की पुष्टि करें",
   },
   
   mr: {
@@ -897,6 +919,17 @@ export const translations = {
     minimumWithdrawalAmount: "किमान पैसे काढण्याची रक्कम ₹100 आहे",
     insufficientBalance: "अपुरी शिल्लक",
     pleaseAddBankAccountFirst: "कृपया प्रथम बँक खात्याचे तपशील जोडा",
+    
+    // Payment
+    payNow: "आता पैसे द्या",
+    paymentConfirmation: "पेमेंट पुष्टीकरण",
+    reviewPaymentDetails: "पुष्टी करण्यापूर्वी पेमेंट तपशील पहा",
+    jobDetails: "नोकरी तपशील",
+    laborCost: "मजुरी खर्च",
+    totalToPay: "एकूण देय",
+    paymentMethod: "पेमेंट पद्धत",
+    upiPaymentInfo: "पेमेंट UPI द्वारे प्रक्रिया केले जाईल। ₹10 चे प्लॅटफॉर्म शुल्क समाविष्ट आहे।",
+    confirmPayment: "पेमेंटची पुष्टी करा",
   },
 } as const;
 
