@@ -19,6 +19,7 @@ export default function SobrietyCheck() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [result, setResult] = useState<"passed" | "failed" | null>(null);
   const [analysisDetails, setAnalysisDetails] = useState<string>("");
+  const [analysisData, setAnalysisData] = useState<any>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -73,20 +74,26 @@ export default function SobrietyCheck() {
       const checkResult: any = await apiRequest("POST", "/api/sobriety-check", {
         laborerId: user.id,
         imageDataUrl: imageData,
-        status: "pending_review",
       });
 
+      console.log("Sobriety check response:", checkResult);
       setResult(checkResult.status);
       
       // Parse the structured analysis result
       let analysisText = "Analysis complete";
+      let parsedData = null;
+      
       try {
-        const analysisData = JSON.parse(checkResult.analysisResult);
-        if (analysisData.analysis) {
-          analysisText = analysisData.analysis;
-        } else if (analysisData.detectedIssues && analysisData.detectedIssues.length > 0) {
-          analysisText = analysisData.detectedIssues.join(", ");
+        parsedData = JSON.parse(checkResult.analysisResult);
+        console.log("Parsed analysis data:", parsedData);
+        
+        if (parsedData.analysis) {
+          analysisText = parsedData.analysis;
+        } else if (parsedData.detectedIssues && parsedData.detectedIssues.length > 0) {
+          analysisText = parsedData.detectedIssues.join(", ");
         }
+        
+        setAnalysisData(parsedData);
       } catch {
         // Fallback to raw string if not JSON
         analysisText = checkResult.analysisResult || "Analysis complete";
@@ -220,27 +227,127 @@ export default function SobrietyCheck() {
               <canvas ref={canvasRef} className="hidden" />
 
               {/* Result Display */}
-              {result && (
-                <Alert className={result === "passed" ? "border-chart-3" : "border-destructive"}>
-                  {result === "passed" ? (
-                    <CheckCircle2 className="h-4 w-4 text-chart-3" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-destructive" />
+              {result && analysisData && (
+                <div className="space-y-4">
+                  {/* Overall Status */}
+                  <Alert className={result === "passed" ? "border-chart-3" : "border-destructive"}>
+                    {result === "passed" ? (
+                      <CheckCircle2 className="h-4 w-4 text-chart-3" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    )}
+                    <AlertDescription>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="font-semibold text-base">
+                            {result === "passed" ? t("verificationPassed") : t("verificationFailed")}
+                          </p>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold">{analysisData.confidence}%</p>
+                            <p className="text-xs text-muted-foreground">{t("confidence")}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Confidence Bar */}
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full ${result === "passed" ? "bg-chart-3" : "bg-destructive"}`}
+                            style={{ width: `${analysisData.confidence}%` }}
+                          />
+                        </div>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+
+                  {/* Assessment Criteria */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">{t("assessmentCriteria")}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {/* Eye Movement */}
+                      <div className="flex items-center justify-between" data-testid="criteria-eye">
+                        <span className="text-sm">{t("eyeMovement")}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded-md font-medium ${
+                            analysisData.criteria?.eyeMovement?.status === "normal" 
+                              ? "bg-chart-3/10 text-chart-3" 
+                              : "bg-destructive/10 text-destructive"
+                          }`}>
+                            {analysisData.criteria?.eyeMovement?.status?.toUpperCase() || "N/A"}
+                          </span>
+                          <span className="text-sm font-medium">{analysisData.criteria?.eyeMovement?.score || 0}%</span>
+                        </div>
+                      </div>
+
+                      {/* Facial Expression */}
+                      <div className="flex items-center justify-between" data-testid="criteria-facial">
+                        <span className="text-sm">{t("facialExpression")}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded-md font-medium ${
+                            analysisData.criteria?.facialExpression?.status === "normal" 
+                              ? "bg-chart-3/10 text-chart-3" 
+                              : "bg-destructive/10 text-destructive"
+                          }`}>
+                            {analysisData.criteria?.facialExpression?.status?.toUpperCase() || "N/A"}
+                          </span>
+                          <span className="text-sm font-medium">{analysisData.criteria?.facialExpression?.score || 0}%</span>
+                        </div>
+                      </div>
+
+                      {/* Head Position */}
+                      <div className="flex items-center justify-between" data-testid="criteria-head">
+                        <span className="text-sm">{t("headPosition")}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded-md font-medium ${
+                            analysisData.criteria?.headPosition?.status === "stable" 
+                              ? "bg-chart-3/10 text-chart-3" 
+                              : "bg-destructive/10 text-destructive"
+                          }`}>
+                            {analysisData.criteria?.headPosition?.status?.toUpperCase() || "N/A"}
+                          </span>
+                          <span className="text-sm font-medium">{analysisData.criteria?.headPosition?.score || 0}%</span>
+                        </div>
+                      </div>
+
+                      {/* Skin Color */}
+                      <div className="flex items-center justify-between" data-testid="criteria-skin">
+                        <span className="text-sm">{t("skinColor")}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded-md font-medium ${
+                            analysisData.criteria?.skinColor?.status === "normal" 
+                              ? "bg-chart-3/10 text-chart-3" 
+                              : "bg-destructive/10 text-destructive"
+                          }`}>
+                            {analysisData.criteria?.skinColor?.status?.toUpperCase() || "N/A"}
+                          </span>
+                          <span className="text-sm font-medium">{analysisData.criteria?.skinColor?.score || 0}%</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Analysis Details */}
+                  {analysisDetails && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base">{t("detailedAnalysis")}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">{analysisDetails}</p>
+                      </CardContent>
+                    </Card>
                   )}
-                  <AlertDescription>
-                    <div className="space-y-2">
-                      <p className="font-semibold">
-                        {result === "passed" ? t("verificationPassed") : t("verificationFailed")}
-                      </p>
-                      <p className="text-sm">{analysisDetails}</p>
-                      {result === "failed" && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {t("retryAfter5Hours")}
-                        </p>
-                      )}
-                    </div>
-                  </AlertDescription>
-                </Alert>
+
+                  {result === "failed" && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        {t("retryAfter5Hours")}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
               )}
 
               {/* Action Buttons */}
