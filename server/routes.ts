@@ -846,6 +846,160 @@ Be thorough but fair in your assessment. Only fail cases where there are clear i
     }
   });
 
+  // Submit payment for admin approval
+  app.post("/api/payments/submit", async (req, res) => {
+    try {
+      const { jobId, transactionNumber, paymentScreenshotUrl } = req.body;
+      const customerId = req.headers['x-user-id'] as string;
+      
+      if (!jobId) {
+        return res.status(400).json({ error: "Job ID is required" });
+      }
+
+      if (!customerId) {
+        return res.status(401).json({ error: "Unauthorized - Customer ID required" });
+      }
+
+      // Get job details
+      const job = await storage.getJob(jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      // CRITICAL: Authorization check - verify customer owns this job
+      if (job.customerId !== customerId) {
+        return res.status(403).json({ error: "Unauthorized - You can only submit payment for your own jobs" });
+      }
+
+      if (!job.assignedLaborerId) {
+        return res.status(400).json({ error: "No laborer assigned to this job" });
+      }
+
+      // Calculate amounts
+      const customerConvenienceFee = job.customerConvenienceFee || 10;
+      const workerConvenienceFee = job.workerConvenienceFee || 10;
+      const workerNetEarnings = job.totalAmount - workerConvenienceFee;
+      const platformRevenue = customerConvenienceFee + workerConvenienceFee;
+
+      // Create payment record with pending_approval status
+      const payment = await storage.createPayment({
+        jobId: job.id,
+        laborerId: job.assignedLaborerId,
+        customerId: job.customerId,
+        amount: workerNetEarnings,
+        customerConvenienceFee,
+        workerConvenienceFee,
+        platformFee: platformRevenue,
+        status: "pending_approval",
+        transactionNumber: transactionNumber || null,
+        paymentScreenshotUrl: paymentScreenshotUrl || null,
+      });
+
+      // Update job status to indicate payment is pending
+      await storage.updateJob(jobId, {
+        status: "pending_payment",
+      });
+
+      res.json(payment);
+    } catch (error: any) {
+      console.error("Payment submission error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Approve payment (admin only)
+  app.post("/api/payments/:paymentId/approve", requireAdmin, async (req, res) => {
+    try {
+      const payment = await storage.getPayment(req.params.paymentId);
+      
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+
+      // CRITICAL: Idempotency check - prevent double approval
+      if (payment.status !== "pending_approval") {
+        return res.status(400).json({ 
+          error: `Payment cannot be approved. Current status: ${payment.status}` 
+        });
+      }
+
+      // Update payment status FIRST to prevent race conditions
+      const updatedPayment = await storage.updatePayment(req.params.paymentId, {
+        status: "approved",
+        approvedAt: new Date(),
+      });
+
+      // Verify payment was actually updated
+      if (!updatedPayment || updatedPayment.status !== "approved") {
+        throw new Error("Failed to update payment status");
+      }
+
+      // Update or create worker wallet
+      let wallet = await storage.getWorkerWallet(payment.laborerId);
+      if (!wallet) {
+        wallet = await storage.createWorkerWallet({
+          laborerId: payment.laborerId,
+        });
+      }
+
+      // Credit worker wallet
+      await storage.updateWorkerWallet(payment.laborerId, {
+        availableBalance: wallet.availableBalance + payment.amount,
+      });
+
+      // Update laborer profile earnings
+      const laborerProfile = await storage.getLaborerProfile(payment.laborerId);
+      if (laborerProfile) {
+        await storage.updateLaborerProfile(payment.laborerId, {
+          totalEarnings: (laborerProfile.totalEarnings || 0) + payment.amount,
+          completedJobs: (laborerProfile.completedJobs || 0) + 1,
+          availabilityStatus: "available",
+        });
+      }
+
+      // Update job status to completed
+      await storage.updateJob(payment.jobId, {
+        status: "completed",
+        completedAt: new Date(),
+      });
+
+      res.json(updatedPayment);
+    } catch (error: any) {
+      console.error("Approve payment error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Reject payment (admin only)
+  app.post("/api/payments/:paymentId/reject", requireAdmin, async (req, res) => {
+    try {
+      const payment = await storage.getPayment(req.params.paymentId);
+      
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+
+      if (payment.status !== "pending_approval") {
+        return res.status(400).json({ error: "Payment is not pending approval" });
+      }
+
+      // Update payment status
+      const updatedPayment = await storage.updatePayment(req.params.paymentId, {
+        status: "rejected",
+      });
+
+      // Update job status back to assigned (customer needs to resubmit)
+      await storage.updateJob(payment.jobId, {
+        status: "assigned",
+      });
+
+      res.json(updatedPayment);
+    } catch (error: any) {
+      console.error("Reject payment error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Worker Wallet routes
   app.get("/api/wallet/:laborerId", async (req, res) => {
     try {

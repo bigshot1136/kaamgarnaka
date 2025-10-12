@@ -61,6 +61,7 @@ export interface IStorage {
 
   // Payment methods
   createPayment(payment: InsertPayment): Promise<Payment>;
+  getPayment(id: string): Promise<Payment | undefined>;
   getPaymentsByLaborer(laborerId: string): Promise<Payment[]>;
   getPaymentsByCustomer(customerId: string): Promise<Payment[]>;
   getAllPayments(): Promise<Payment[]>;
@@ -284,6 +285,15 @@ export class DatabaseStorage implements IStorage {
   // Payment methods
   async createPayment(payment: InsertPayment): Promise<Payment> {
     const result = await db.insert(payments).values(payment).returning();
+    return result[0];
+  }
+
+  async getPayment(id: string): Promise<Payment | undefined> {
+    const result = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.id, id))
+      .limit(1);
     return result[0];
   }
 

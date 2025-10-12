@@ -10,11 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
 import { SkillBadge } from "@/components/SkillBadge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Plus, Minus, IndianRupee, Loader2, Briefcase, CheckCircle2, CreditCard } from "lucide-react";
+import { Plus, Minus, IndianRupee, Loader2, Briefcase, CheckCircle2, CreditCard, Upload, QrCode } from "lucide-react";
 import { LABOR_RATES, type SkillType, type JobSkillRequirement, type Job } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
@@ -25,6 +26,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { QRCodeSVG } from 'qrcode.react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const jobSchema = z.object({
   location: z.string().min(5, "Location is required"),
@@ -37,7 +40,19 @@ const jobSchema = z.object({
   ).min(1, "Add at least one skill requirement"),
 });
 
+const paymentSubmissionSchema = z.object({
+  transactionNumber: z.string().optional(),
+  paymentScreenshotUrl: z.string().optional(),
+}).refine(
+  (data) => data.transactionNumber || data.paymentScreenshotUrl,
+  {
+    message: "Please provide either a transaction number or upload a payment screenshot",
+    path: ["transactionNumber"],
+  }
+);
+
 type JobForm = z.infer<typeof jobSchema>;
+type PaymentSubmissionForm = z.infer<typeof paymentSubmissionSchema>;
 
 const skills: SkillType[] = ["mason", "carpenter", "plumber", "painter", "helper"];
 
@@ -45,6 +60,12 @@ interface Payment {
   id: string;
   amount: number;
   platformFee: number;
+}
+
+interface LaborerProfile {
+  id: string;
+  fullName: string;
+  upiId: string;
 }
 
 export default function CustomerDashboard() {
@@ -56,6 +77,7 @@ export default function CustomerDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedJobForPayment, setSelectedJobForPayment] = useState<Job | null>(null);
+  const [paymentTab, setPaymentTab] = useState("qr-code");
 
   // Fetch customer's jobs
   const { data: customerJobs = [], refetch: refetchJobs } = useQuery<Job[]>({
@@ -72,22 +94,41 @@ export default function CustomerDashboard() {
   // Calculate total spending
   const totalSpending = customerPayments.reduce((sum, payment) => sum + (payment.amount || 0) + (payment.platformFee || 0), 0);
 
-  // Mark job as complete mutation
-  const completeJobMutation = useMutation({
-    mutationFn: async (jobId: string) => {
-      return apiRequest("POST", `/api/jobs/${jobId}/complete`, { customerId: user?.id });
+  // Fetch laborer profile for payment (when dialog is open and job selected)
+  const { data: laborerProfile } = useQuery<LaborerProfile>({
+    queryKey: [`/api/laborer/profile/${selectedJobForPayment?.assignedLaborerId}`],
+    enabled: !!selectedJobForPayment?.assignedLaborerId && paymentDialogOpen,
+  });
+
+  // Payment submission form
+  const paymentForm = useForm<PaymentSubmissionForm>({
+    resolver: zodResolver(paymentSubmissionSchema),
+    defaultValues: {
+      transactionNumber: "",
+      paymentScreenshotUrl: "",
+    },
+  });
+
+  // Submit payment mutation
+  const submitPaymentMutation = useMutation({
+    mutationFn: async (data: PaymentSubmissionForm & { jobId: string }) => {
+      return apiRequest("POST", "/api/payments/submit", data);
     },
     onSuccess: () => {
       refetchJobs();
+      queryClient.invalidateQueries({ queryKey: [`/api/payments/customer/${user?.id}`] });
+      setPaymentDialogOpen(false);
+      setSelectedJobForPayment(null);
+      paymentForm.reset();
       toast({
         title: t("success"),
-        description: t("jobCompleteSuccess"),
+        description: "Payment submitted for admin approval",
       });
     },
     onError: (error: any) => {
       toast({
         title: t("error"),
-        description: error.message || t("jobCompleteFailed"),
+        description: error.message || "Payment submission failed",
         variant: "destructive",
       });
     },
@@ -453,94 +494,173 @@ export default function CustomerDashboard() {
 
       {/* Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t("paymentConfirmation")}</DialogTitle>
+            <DialogTitle>Pay for Job</DialogTitle>
             <DialogDescription>
-              {t("reviewPaymentDetails")}
+              Complete payment to release worker earnings
             </DialogDescription>
           </DialogHeader>
           
-          {selectedJobForPayment && (
-            <div className="space-y-4">
-              {/* Job Details */}
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">{t("jobDetails")}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {(selectedJobForPayment.skillsNeeded as JobSkillRequirement[] | undefined)?.map((req) => (
-                    <SkillBadge key={req.skill} skill={req.skill as SkillType} />
-                  ))}
-                </div>
-                <p className="text-sm text-muted-foreground">{selectedJobForPayment.location}</p>
-              </div>
+          {selectedJobForPayment && laborerProfile && (
+            <Tabs value={paymentTab} onValueChange={setPaymentTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="qr-code" data-testid="tab-qr-code">
+                  <QrCode className="mr-2 h-4 w-4" />
+                  QR Code
+                </TabsTrigger>
+                <TabsTrigger value="submit-payment" data-testid="tab-submit-payment">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Submit Payment
+                </TabsTrigger>
+              </TabsList>
 
-              {/* Payment Breakdown */}
-              <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-                <div className="flex justify-between text-sm">
-                  <span>{t("laborCost")}</span>
-                  <span className="font-medium">₹{selectedJobForPayment.totalAmount}</span>
+              <TabsContent value="qr-code" className="space-y-4 mt-4">
+                {/* Job Details */}
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Job Details</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {(selectedJobForPayment.skillsNeeded as JobSkillRequirement[] | undefined)?.map((req) => (
+                      <SkillBadge key={req.skill} skill={req.skill as SkillType} />
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground">{selectedJobForPayment.location}</p>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>{t("platformFee")}</span>
-                  <span className="font-medium">₹{selectedJobForPayment.platformFee || 10}</span>
-                </div>
-                <div className="h-px bg-border my-2"></div>
-                <div className="flex justify-between font-semibold">
-                  <span>{t("totalToPay")}</span>
-                  <span className="flex items-center">
-                    <IndianRupee className="h-4 w-4" />
-                    {(selectedJobForPayment.totalAmount || 0) + (selectedJobForPayment.platformFee || 10)}
-                  </span>
-                </div>
-              </div>
 
-              {/* Payment Options */}
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">{t("paymentMethod")}</h4>
-                <p className="text-xs text-muted-foreground">
-                  {t("upiPaymentInfo")}
-                </p>
-              </div>
-            </div>
+                {/* Payment Breakdown */}
+                <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex justify-between text-sm">
+                    <span>Labor Cost</span>
+                    <span className="font-medium">₹{selectedJobForPayment.totalAmount}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Platform Fee</span>
+                    <span className="font-medium">₹{selectedJobForPayment.platformFee || 10}</span>
+                  </div>
+                  <div className="h-px bg-border my-2"></div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Total to Pay</span>
+                    <span className="flex items-center">
+                      <IndianRupee className="h-4 w-4" />
+                      {(selectedJobForPayment.totalAmount || 0) + (selectedJobForPayment.platformFee || 10)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* QR Code Display */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Scan to Pay via UPI</h4>
+                  <div className="flex flex-col items-center p-6 bg-white rounded-lg border">
+                    <QRCodeSVG
+                      value={`upi://pay?pa=${laborerProfile.upiId}&pn=${encodeURIComponent(laborerProfile.fullName)}&am=${(selectedJobForPayment.totalAmount || 0) + (selectedJobForPayment.platformFee || 10)}&cu=INR`}
+                      size={200}
+                      level="H"
+                      data-testid="qr-code-payment"
+                    />
+                    <p className="text-sm text-muted-foreground mt-3 text-center">
+                      Pay to: {laborerProfile.fullName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      UPI ID: {laborerProfile.upiId}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    After payment, switch to "Submit Payment" tab to enter transaction details
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="submit-payment" className="space-y-4 mt-4">
+                <Form {...paymentForm}>
+                  <form onSubmit={paymentForm.handleSubmit((data) => {
+                    submitPaymentMutation.mutate({
+                      ...data,
+                      jobId: selectedJobForPayment.id,
+                    });
+                  })} className="space-y-4">
+                    <FormField
+                      control={paymentForm.control}
+                      name="transactionNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Transaction Number (UTR/UPI Ref)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter UPI transaction number" 
+                              data-testid="input-transaction-number"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="text-center text-sm text-muted-foreground">OR</div>
+
+                    <FormField
+                      control={paymentForm.control}
+                      name="paymentScreenshotUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Payment Screenshot URL</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Paste screenshot URL or upload to cloud and paste link" 
+                              className="min-h-20"
+                              data-testid="input-screenshot-url"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setPaymentDialogOpen(false);
+                          setSelectedJobForPayment(null);
+                          paymentForm.reset();
+                        }}
+                        className="flex-1"
+                        data-testid="button-cancel-payment"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={submitPaymentMutation.isPending}
+                        className="flex-1"
+                        data-testid="button-submit-payment"
+                      >
+                        {submitPaymentMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Submit for Approval
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </TabsContent>
+            </Tabs>
           )}
 
-          <DialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setPaymentDialogOpen(false);
-                setSelectedJobForPayment(null);
-              }}
-              className="w-full sm:w-auto"
-              data-testid="button-cancel-payment"
-            >
-              {t("cancel")}
-            </Button>
-            <Button
-              onClick={() => {
-                if (selectedJobForPayment) {
-                  completeJobMutation.mutate(selectedJobForPayment.id);
-                  setPaymentDialogOpen(false);
-                  setSelectedJobForPayment(null);
-                }
-              }}
-              disabled={completeJobMutation.isPending}
-              className="w-full sm:w-auto"
-              data-testid="button-confirm-payment"
-            >
-              {completeJobMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("processing")}
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  {t("confirmPayment")}
-                </>
-              )}
-            </Button>
-          </DialogFooter>
+          {selectedJobForPayment && !laborerProfile && (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

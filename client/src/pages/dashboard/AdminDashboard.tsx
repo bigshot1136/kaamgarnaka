@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, CheckCircle, Clock, XCircle, Users, Briefcase, DollarSign, BarChart3, Eye, LogOut } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, XCircle, Users, Briefcase, DollarSign, BarChart3, Eye, LogOut, Loader } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -72,6 +72,9 @@ interface Payment {
   status: string;
   paidAt: string | null;
   createdAt: string;
+  transactionNumber: string | null;
+  paymentScreenshotUrl: string | null;
+  approvedAt: string | null;
 }
 
 interface Job {
@@ -170,6 +173,46 @@ export default function AdminDashboard() {
       toast({
         title: "Error",
         description: error.message || "Failed to reject check",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const approvePaymentMutation = useMutation({
+    mutationFn: (paymentId: string) => 
+      apiRequest("POST", `/api/payments/${paymentId}/approve`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/statistics"] });
+      toast({
+        title: "Payment Approved",
+        description: "Payment has been approved and funds credited to worker wallet",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve payment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectPaymentMutation = useMutation({
+    mutationFn: (paymentId: string) => 
+      apiRequest("POST", `/api/payments/${paymentId}/reject`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/statistics"] });
+      toast({
+        title: "Payment Rejected",
+        description: "Payment has been rejected",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject payment",
         variant: "destructive",
       });
     },
@@ -465,44 +508,114 @@ export default function AdminDashboard() {
         {/* Payments Tab */}
         <TabsContent value="payments" className="mt-6">
           <div className="grid gap-4">
-            {payments?.map((payment) => (
-              <Card key={payment.id} className="hover-elevate" data-testid={`card-payment-${payment.id}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Payment ID: {payment.id.substring(0, 8)}...</CardTitle>
-                      <CardDescription>Job ID: {payment.jobId.substring(0, 8)}...</CardDescription>
+            {payments?.map((payment) => {
+              const getPaymentStatusBadge = (status: string) => {
+                const statusConfig: Record<string, { color: string; label: string }> = {
+                  pending: { color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20", label: "Pending" },
+                  pending_approval: { color: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20", label: "Pending Approval" },
+                  approved: { color: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20", label: "Approved" },
+                  rejected: { color: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20", label: "Rejected" },
+                  completed: { color: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20", label: "Completed" },
+                };
+                const config = statusConfig[status] || { color: "", label: status };
+                return <Badge className={config.color}>{config.label}</Badge>;
+              };
+
+              return (
+                <Card key={payment.id} className="hover-elevate" data-testid={`card-payment-${payment.id}`}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">Payment ID: {payment.id.substring(0, 8)}...</CardTitle>
+                        <CardDescription>Job ID: {payment.jobId.substring(0, 8)}...</CardDescription>
+                      </div>
+                      {getPaymentStatusBadge(payment.status)}
                     </div>
-                    <Badge className={payment.status === "completed" ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20" : ""}>
-                      {payment.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Worker Amount</p>
-                      <p className="text-lg font-semibold">₹{payment.amount}</p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Worker Amount</p>
+                        <p className="text-lg font-semibold">₹{payment.amount}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Platform Fee</p>
+                        <p className="text-lg font-semibold">₹{payment.platformFee}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Customer: ₹{payment.customerConvenienceFee} + Worker: ₹{payment.workerConvenienceFee}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Created</p>
+                        <p className="text-sm">{format(new Date(payment.createdAt), "PP")}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Approved</p>
+                        <p className="text-sm">{payment.approvedAt ? format(new Date(payment.approvedAt), "PP") : "Not yet"}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Platform Fee</p>
-                      <p className="text-lg font-semibold">₹{payment.platformFee}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Customer: ₹{payment.customerConvenienceFee} + Worker: ₹{payment.workerConvenienceFee}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Created</p>
-                      <p className="text-sm">{format(new Date(payment.createdAt), "PP")}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Paid</p>
-                      <p className="text-sm">{payment.paidAt ? format(new Date(payment.paidAt), "PP") : "Not yet"}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+                    {/* Transaction Details (if available) */}
+                    {(payment.transactionNumber || payment.paymentScreenshotUrl) && (
+                      <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                        <p className="text-sm font-medium">Transaction Details</p>
+                        {payment.transactionNumber && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Transaction Number:</span>
+                            <span className="text-sm font-mono" data-testid={`text-transaction-${payment.id}`}>{payment.transactionNumber}</span>
+                          </div>
+                        )}
+                        {payment.paymentScreenshotUrl && (
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-2">Payment Screenshot:</p>
+                            <a 
+                              href={payment.paymentScreenshotUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline"
+                              data-testid={`link-screenshot-${payment.id}`}
+                            >
+                              View Screenshot →
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Approval Actions (only for pending_approval status) */}
+                    {payment.status === "pending_approval" && (
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => approvePaymentMutation.mutate(payment.id)}
+                          disabled={approvePaymentMutation.isPending}
+                          className="flex-1"
+                          data-testid={`button-approve-payment-${payment.id}`}
+                        >
+                          {approvePaymentMutation.isPending ? (
+                            <><Loader className="w-4 h-4 mr-2 animate-spin" />Approving...</>
+                          ) : (
+                            <><CheckCircle className="w-4 h-4 mr-2" />Approve Payment</>
+                          )}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => rejectPaymentMutation.mutate(payment.id)}
+                          disabled={rejectPaymentMutation.isPending}
+                          className="flex-1"
+                          data-testid={`button-reject-payment-${payment.id}`}
+                        >
+                          {rejectPaymentMutation.isPending ? (
+                            <><Loader className="w-4 h-4 mr-2 animate-spin" />Rejecting...</>
+                          ) : (
+                            <><XCircle className="w-4 h-4 mr-2" />Reject Payment</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
 
