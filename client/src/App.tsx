@@ -20,6 +20,7 @@ import SignIn from "@/pages/auth/SignIn";
 import LaborerSetup from "@/pages/profile/LaborerSetup";
 import CustomerDashboard from "@/pages/dashboard/CustomerDashboard";
 import LaborerDashboard from "@/pages/dashboard/LaborerDashboard";
+import AdminDashboard from "@/pages/dashboard/AdminDashboard";
 import WalletDashboard from "@/pages/dashboard/WalletDashboard";
 import WithdrawalPage from "@/pages/dashboard/WithdrawalPage";
 import SobrietyCheck from "@/pages/SobrietyCheck";
@@ -46,6 +47,11 @@ function Router() {
       <Route path="/dashboard/laborer">
         <ProtectedRoute requiredRole="laborer">
           <LaborerDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/admin">
+        <ProtectedRoute requiredRole="admin">
+          <AdminDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/sobriety-check">

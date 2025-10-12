@@ -59,6 +59,8 @@ export default function SignIn() {
       // Redirect based on role
       if (user.role === "laborer") {
         setLocation("/dashboard/laborer");
+      } else if (user.role === "admin") {
+        setLocation("/dashboard/admin");
       } else {
         setLocation("/dashboard/customer");
       }
