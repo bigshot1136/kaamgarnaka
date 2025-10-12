@@ -20,6 +20,8 @@ import SignIn from "@/pages/auth/SignIn";
 import LaborerSetup from "@/pages/profile/LaborerSetup";
 import CustomerDashboard from "@/pages/dashboard/CustomerDashboard";
 import LaborerDashboard from "@/pages/dashboard/LaborerDashboard";
+import WalletDashboard from "@/pages/dashboard/WalletDashboard";
+import WithdrawalPage from "@/pages/dashboard/WithdrawalPage";
 import SobrietyCheck from "@/pages/SobrietyCheck";
 
 function Router() {
@@ -49,6 +51,16 @@ function Router() {
       <Route path="/sobriety-check">
         <ProtectedRoute requiredRole="laborer">
           <SobrietyCheck />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/wallet">
+        <ProtectedRoute requiredRole="laborer">
+          <WalletDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/wallet/withdraw">
+        <ProtectedRoute requiredRole="laborer">
+          <WithdrawalPage />
         </ProtectedRoute>
       </Route>
       <Route component={NotFound} />
