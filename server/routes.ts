@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertLaborerProfileSchema, insertJobSchema, insertSobrietyCheckSchema, type User } from "@shared/schema";
+import { insertUserSchema, insertLaborerProfileSchema, insertJobSchema, insertSobrietyCheckSchema, type User, type LaborerProfile } from "@shared/schema";
 import { GoogleGenAI } from "@google/genai";
 import multer from "multer";
 import path from "path";
@@ -218,7 +218,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/laborer/profile/:userId", async (req, res) => {
     try {
-      const profile = await storage.getLaborerProfile(req.params.userId);
+      const requestingUserId = req.headers['x-user-id'] as string;
+      const targetUserId = req.params.userId;
+
+      // Authorization: users can only view their own profile (unless admin)
+      if (!requestingUserId) {
+        return res.status(401).json({ error: "Unauthorized - No user ID provided" });
+      }
+
+      // Verify requesting user exists
+      const requestingUser = await storage.getUser(requestingUserId);
+      if (!requestingUser) {
+        return res.status(401).json({ error: "Unauthorized - Invalid user" });
+      }
+
+      if (requestingUserId !== targetUserId) {
+        // Check if requesting user is admin
+        if (requestingUser.role !== 'admin') {
+          return res.status(403).json({ error: "Forbidden - You can only view your own profile" });
+        }
+      }
+
+      const profile = await storage.getLaborerProfile(targetUserId);
       if (!profile) {
         return res.status(404).json({ error: "Profile not found" });
       }
@@ -230,7 +251,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/laborer/profile/:userId", async (req, res) => {
     try {
-      const profile = await storage.updateLaborerProfile(req.params.userId, req.body);
+      const requestingUserId = req.headers['x-user-id'] as string;
+      const targetUserId = req.params.userId;
+
+      // Authorization: users can only update their own profile
+      if (!requestingUserId) {
+        return res.status(401).json({ error: "Unauthorized - No user ID provided" });
+      }
+
+      // Verify requesting user exists and is a laborer
+      const requestingUser = await storage.getUser(requestingUserId);
+      if (!requestingUser) {
+        return res.status(401).json({ error: "Unauthorized - Invalid user" });
+      }
+
+      if (requestingUser.role !== "laborer") {
+        return res.status(403).json({ error: "Forbidden - Only laborers can update laborer profiles" });
+      }
+
+      if (requestingUserId !== targetUserId) {
+        return res.status(403).json({ error: "Forbidden - You can only update your own profile" });
+      }
+
+      const { skills, upiId } = req.body;
+
+      // Validation
+      const updates: Partial<LaborerProfile> = {};
+      if (skills !== undefined) {
+        if (!Array.isArray(skills) || skills.length === 0) {
+          return res.status(400).json({ error: "At least one skill is required" });
+        }
+        const validSkills = ["mason", "carpenter", "plumber", "painter", "helper"];
+        const invalidSkills = skills.filter(s => !validSkills.includes(s));
+        if (invalidSkills.length > 0) {
+          return res.status(400).json({ error: `Invalid skills: ${invalidSkills.join(", ")}` });
+        }
+        updates.skills = skills;
+      }
+
+      if (upiId !== undefined) {
+        if (typeof upiId !== 'string' || upiId.length < 3) {
+          return res.status(400).json({ error: "UPI ID must be at least 3 characters" });
+        }
+        updates.upiId = upiId;
+      }
+
+      const profile = await storage.updateLaborerProfile(targetUserId, updates);
       if (!profile) {
         return res.status(404).json({ error: "Profile not found" });
       }

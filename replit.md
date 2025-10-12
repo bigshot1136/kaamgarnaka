@@ -18,6 +18,21 @@ The platform emphasizes safety through AI verification, trust through transparen
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### Profile Management System (October 2025)
+- **Profile Page**: Users can now view and edit their personal information at `/profile`
+  - All users can edit: full name, phone number, address
+  - Laborers can additionally edit: skills and UPI ID
+  - Laborers can view Aadhaar verification status and address proof
+- **Backend Endpoints**: 
+  - `GET /api/user/:userId` - Fetch user profile (own profile or admin viewing any)
+  - `PATCH /api/user/:userId` - Update basic user info with validation
+  - `PATCH /api/laborer/profile/:userId` - Update laborer skills and UPI ID
+- **Authorization**: All endpoints verify requesting user exists and enforce ownership rules
+- **Navigation**: Profile link added to navbar (desktop and mobile versions)
+- **Security**: Same authentication level as rest of application (⚠️ client-side only, documented below)
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -42,6 +57,7 @@ Preferred communication style: Simple, everyday language.
 - Customer dashboard for job posting and management
 - Laborer dashboard for job alerts and acceptance
 - Profile setup pages (separate flows for customers and laborers)
+- **Profile page** - View and edit personal information (all users can edit name/phone/address; laborers can additionally edit skills and UPI ID)
 - AI sobriety check interface with camera integration
 - About and Contact informational pages
 
