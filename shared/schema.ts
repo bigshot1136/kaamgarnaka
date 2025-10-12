@@ -10,6 +10,8 @@ export const jobStatusEnum = pgEnum("job_status", ["pending", "assigned", "in_pr
 export const sobrietyStatusEnum = pgEnum("sobriety_status", ["passed", "failed", "pending_review"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed"]);
 export const skillTypeEnum = pgEnum("skill_type", ["mason", "carpenter", "plumber", "painter", "helper"]);
+export const withdrawalStatusEnum = pgEnum("withdrawal_status", ["pending", "processing", "completed", "failed", "cancelled"]);
+export const transactionTypeEnum = pgEnum("transaction_type", ["earning", "withdrawal", "platform_fee"]);
 
 // Users table
 export const users = pgTable("users", {
@@ -46,8 +48,10 @@ export const jobs = pgTable("jobs", {
   status: jobStatusEnum("status").default("pending").notNull(),
   skillsNeeded: jsonb("skills_needed").notNull(), // [{skill: string, quantity: number, rate: number}]
   location: text("location").notNull(),
-  totalAmount: integer("total_amount").notNull(), // in rupees
-  platformFee: integer("platform_fee").default(10).notNull(),
+  totalAmount: integer("total_amount").notNull(), // in rupees (service cost only)
+  customerConvenienceFee: integer("customer_convenience_fee").default(10).notNull(), // ₹10 paid by customer
+  workerConvenienceFee: integer("worker_convenience_fee").default(10).notNull(), // ₹10 deducted from worker
+  platformFee: integer("platform_fee").default(20).notNull(), // total platform revenue (₹10 + ₹10)
   assignedLaborerId: varchar("assigned_laborer_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   assignedAt: timestamp("assigned_at"),
@@ -73,11 +77,55 @@ export const payments = pgTable("payments", {
   jobId: varchar("job_id").notNull().references(() => jobs.id, { onDelete: "cascade" }),
   laborerId: varchar("laborer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   customerId: varchar("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  amount: integer("amount").notNull(), // laborer's earnings
-  platformFee: integer("platform_fee").notNull(),
+  amount: integer("amount").notNull(), // laborer's earnings (after worker convenience fee)
+  customerConvenienceFee: integer("customer_convenience_fee").default(10).notNull(),
+  workerConvenienceFee: integer("worker_convenience_fee").default(10).notNull(),
+  platformFee: integer("platform_fee").notNull(), // total platform revenue (customer + worker fees)
   status: paymentStatusEnum("status").default("pending").notNull(),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Worker Wallets table
+export const workerWallets = pgTable("worker_wallets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  laborerId: varchar("laborer_id").unique().notNull().references(() => users.id, { onDelete: "cascade" }),
+  availableBalance: integer("available_balance").default(0).notNull(),
+  totalEarnings: integer("total_earnings").default(0).notNull(),
+  totalPlatformFees: integer("total_platform_fees").default(0).notNull(),
+  totalWithdrawn: integer("total_withdrawn").default(0).notNull(),
+  bankAccountNumber: text("bank_account_number"),
+  bankIfscCode: text("bank_ifsc_code"),
+  bankAccountHolderName: text("bank_account_holder_name"),
+  bankName: text("bank_name"),
+  kycVerified: boolean("kyc_verified").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Withdrawals table
+export const withdrawals = pgTable("withdrawals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  laborerId: varchar("laborer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amount: integer("amount").notNull(),
+  status: withdrawalStatusEnum("status").default("pending").notNull(),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+  utrNumber: text("utr_number"), // Unique Transaction Reference
+  razorpayPayoutId: text("razorpay_payout_id"),
+  failureReason: text("failure_reason"),
+});
+
+// Platform Revenue table
+export const platformRevenue = pgTable("platform_revenue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: timestamp("date").notNull().unique(), // daily entry
+  totalRevenue: integer("total_revenue").default(0).notNull(),
+  customerConvenienceFees: integer("customer_convenience_fees").default(0).notNull(),
+  workerConvenienceFees: integer("worker_convenience_fees").default(0).notNull(),
+  transactionCount: integer("transaction_count").default(0).notNull(),
+  totalServiceAmount: integer("total_service_amount").default(0).notNull(),
+  totalWorkerPayouts: integer("total_worker_payouts").default(0).notNull(),
 });
 
 // Relations
@@ -86,11 +134,16 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [laborerProfiles.userId],
   }),
+  workerWallet: one(workerWallets, {
+    fields: [users.id],
+    references: [workerWallets.laborerId],
+  }),
   jobsAsCustomer: many(jobs, { relationName: "customer_jobs" }),
   jobsAsLaborer: many(jobs, { relationName: "laborer_jobs" }),
   sobrietyChecks: many(sobrietyChecks),
   paymentsAsLaborer: many(payments, { relationName: "laborer_payments" }),
   paymentsAsCustomer: many(payments, { relationName: "customer_payments" }),
+  withdrawals: many(withdrawals),
 }));
 
 export const laborerProfilesRelations = relations(laborerProfiles, ({ one }) => ({
@@ -143,6 +196,20 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   }),
 }));
 
+export const workerWalletsRelations = relations(workerWallets, ({ one }) => ({
+  laborer: one(users, {
+    fields: [workerWallets.laborerId],
+    references: [users.id],
+  }),
+}));
+
+export const withdrawalsRelations = relations(withdrawals, ({ one }) => ({
+  laborer: one(users, {
+    fields: [withdrawals.laborerId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas and types
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -180,6 +247,27 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
   paidAt: true,
 });
 
+export const insertWorkerWalletSchema = createInsertSchema(workerWallets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  availableBalance: true,
+  totalEarnings: true,
+  totalPlatformFees: true,
+  totalWithdrawn: true,
+  kycVerified: true,
+});
+
+export const insertWithdrawalSchema = createInsertSchema(withdrawals).omit({
+  id: true,
+  requestedAt: true,
+  processedAt: true,
+});
+
+export const insertPlatformRevenueSchema = createInsertSchema(platformRevenue).omit({
+  id: true,
+});
+
 // Infer types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -195,6 +283,15 @@ export type InsertSobrietyCheck = z.infer<typeof insertSobrietyCheckSchema>;
 
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+export type WorkerWallet = typeof workerWallets.$inferSelect;
+export type InsertWorkerWallet = z.infer<typeof insertWorkerWalletSchema>;
+
+export type Withdrawal = typeof withdrawals.$inferSelect;
+export type InsertWithdrawal = z.infer<typeof insertWithdrawalSchema>;
+
+export type PlatformRevenue = typeof platformRevenue.$inferSelect;
+export type InsertPlatformRevenue = z.infer<typeof insertPlatformRevenueSchema>;
 
 // Government labor rates (in INR per day)
 export const LABOR_RATES = {
