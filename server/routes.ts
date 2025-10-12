@@ -552,6 +552,8 @@ Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detail
   });
 
   // Payment routes
+  // NOTE: This endpoint is for generic payment creation.
+  // For job completion payments with dual convenience fees, use POST /api/jobs/:jobId/complete instead
   app.post("/api/payments", async (req, res) => {
     try {
       const payment = await storage.createPayment(req.body);
