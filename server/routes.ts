@@ -723,6 +723,77 @@ Be thorough but fair in your assessment. Only fail cases where there are clear i
     }
   });
 
+  // Admin route to get all laborers
+  app.get("/api/admin/laborers", requireAdmin, async (req, res) => {
+    try {
+      const laborers = await storage.getAllLaborers();
+      res.json(laborers);
+    } catch (error: any) {
+      console.error("Get laborers error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin route to get all payments
+  app.get("/api/admin/payments", requireAdmin, async (req, res) => {
+    try {
+      const payments = await storage.getAllPayments();
+      res.json(payments);
+    } catch (error: any) {
+      console.error("Get payments error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin route to get all jobs
+  app.get("/api/admin/jobs", requireAdmin, async (req, res) => {
+    try {
+      const jobs = await storage.getAllJobs();
+      res.json(jobs);
+    } catch (error: any) {
+      console.error("Get jobs error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin route to get platform statistics
+  app.get("/api/admin/statistics", requireAdmin, async (req, res) => {
+    try {
+      const [
+        laborers,
+        jobs,
+        payments,
+        platformRevenue,
+        pendingWithdrawals
+      ] = await Promise.all([
+        storage.getAllLaborers(),
+        storage.getAllJobs(),
+        storage.getAllPayments(),
+        storage.getTotalPlatformRevenue(),
+        storage.getPendingWithdrawals()
+      ]);
+
+      const stats = {
+        totalLaborers: laborers.length,
+        verifiedLaborers: laborers.filter(l => l.isVerified).length,
+        availableLaborers: laborers.filter(l => l.availabilityStatus === 'available').length,
+        totalJobs: jobs.length,
+        pendingJobs: jobs.filter(j => j.status === 'pending').length,
+        completedJobs: jobs.filter(j => j.status === 'completed').length,
+        totalPayments: payments.length,
+        totalRevenue: platformRevenue.total,
+        totalTransactions: platformRevenue.transactions,
+        pendingWithdrawals: pendingWithdrawals.length,
+        pendingWithdrawalAmount: pendingWithdrawals.reduce((sum, w) => sum + w.amount, 0)
+      };
+
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Get statistics error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Payment routes
   // NOTE: This endpoint is for generic payment creation.
   // For job completion payments with dual convenience fees, use POST /api/jobs/:jobId/complete instead

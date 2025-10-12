@@ -40,6 +40,7 @@ export interface IStorage {
   createLaborerProfile(profile: InsertLaborerProfile): Promise<LaborerProfile>;
   updateLaborerProfile(userId: string, updates: Partial<LaborerProfile>): Promise<LaborerProfile | undefined>;
   getLaborersBySkill(skill: string): Promise<(LaborerProfile & { user: User })[]>;
+  getAllLaborers(): Promise<(LaborerProfile & { user: User })[]>;
 
   // Job methods
   createJob(job: InsertJob): Promise<Job>;
@@ -49,6 +50,7 @@ export interface IStorage {
   getAvailableJobsForLaborer(laborerId: string): Promise<Job[]>;
   updateJob(id: string, updates: Partial<Job>): Promise<Job | undefined>;
   getPendingJobs(): Promise<Job[]>;
+  getAllJobs(): Promise<Job[]>;
 
   // Sobriety Check methods
   createSobrietyCheck(check: InsertSobrietyCheck): Promise<SobrietyCheck>;
@@ -60,6 +62,8 @@ export interface IStorage {
   // Payment methods
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPaymentsByLaborer(laborerId: string): Promise<Payment[]>;
+  getPaymentsByCustomer(customerId: string): Promise<Payment[]>;
+  getAllPayments(): Promise<Payment[]>;
   updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined>;
 
   // Worker Wallet methods
@@ -149,6 +153,19 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  async getAllLaborers(): Promise<(LaborerProfile & { user: User })[]> {
+    const result = await db
+      .select()
+      .from(laborerProfiles)
+      .leftJoin(users, eq(laborerProfiles.userId, users.id))
+      .orderBy(desc(laborerProfiles.createdAt));
+
+    return result.map((row) => ({
+      ...row.laborer_profiles,
+      user: row.users!,
+    }));
+  }
+
   // Job methods
   async createJob(job: InsertJob): Promise<Job> {
     const result = await db.insert(jobs).values(job).returning();
@@ -209,6 +226,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(jobs)
       .where(eq(jobs.status, "pending"))
+      .orderBy(desc(jobs.createdAt));
+  }
+
+  async getAllJobs(): Promise<Job[]> {
+    return await db
+      .select()
+      .from(jobs)
       .orderBy(desc(jobs.createdAt));
   }
 
@@ -276,6 +300,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(payments)
       .where(eq(payments.customerId, customerId))
+      .orderBy(desc(payments.createdAt));
+  }
+
+  async getAllPayments(): Promise<Payment[]> {
+    return await db
+      .select()
+      .from(payments)
       .orderBy(desc(payments.createdAt));
   }
 
