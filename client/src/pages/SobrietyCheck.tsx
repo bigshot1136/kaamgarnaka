@@ -77,7 +77,22 @@ export default function SobrietyCheck() {
       });
 
       setResult(checkResult.status);
-      setAnalysisDetails(checkResult.analysisResult || "Analysis complete");
+      
+      // Parse the structured analysis result
+      let analysisText = "Analysis complete";
+      try {
+        const analysisData = JSON.parse(checkResult.analysisResult);
+        if (analysisData.analysis) {
+          analysisText = analysisData.analysis;
+        } else if (analysisData.detectedIssues && analysisData.detectedIssues.length > 0) {
+          analysisText = analysisData.detectedIssues.join(", ");
+        }
+      } catch {
+        // Fallback to raw string if not JSON
+        analysisText = checkResult.analysisResult || "Analysis complete";
+      }
+      
+      setAnalysisDetails(analysisText);
     } catch (error: any) {
       console.error("Sobriety check error:", error);
       

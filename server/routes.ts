@@ -402,112 +402,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-      // Analyze image with Gemini Vision
-      const prompt = `You are a strict workplace safety AI assistant. Analyze this selfie to determine if the person is fit for duty. This is a safety-critical assessment.
+      // System instruction for Gemini 2.5 Pro
+      const systemPrompt = `You are a workplace safety AI specialist analyzing worker selfies for fitness for duty assessment.
 
-PRIMARY SAFETY INDICATORS (analyze carefully):
+Your task is to evaluate whether a worker appears to be under the influence of alcohol or substances that would make them unsafe to work.
 
-1. EYE MOVEMENT & FOCUS:
-   - Bloodshot or red eyes (FAIL)
-   - Unusual pupil dilation or constriction (FAIL)
-   - Difficulty focusing or maintaining eye contact (FAIL)
-   - Glazed or "glassy" appearance in eyes (FAIL)
-   - Droopy or heavy eyelids (FAIL)
+Analyze the image for the following safety indicators:
+1. Eye Movement & Focus - Look for bloodshot eyes, unusual dilation, difficulty focusing, or glazed appearance
+2. Facial Expression - Check for signs of confusion, disorientation, or altered mental state
+3. Head Position - Assess stability, ability to hold head steady, signs of swaying or instability
+4. Skin Color Analysis - Look for flushing, pallor, or other color changes that might indicate impairment
 
-2. FACIAL EXPRESSION:
-   - Signs of confusion or disorientation (FAIL)
-   - Altered mental state visible in expression (FAIL)
-   - Inappropriate facial expressions for the situation (FAIL)
-   - Lack of alertness or responsiveness (FAIL)
-   - Unusual muscle tension or relaxation (FAIL)
+Provide a comprehensive safety assessment with:
+- Overall status: "passed" or "failed"
+- Confidence score (0-100)
+- Individual criteria scores and status
+- List of any detected issues
+- Risk level assessment
+- Detailed analysis
 
-3. HEAD POSITION & STABILITY:
-   - Inability to hold head steady (FAIL)
-   - Signs of swaying or instability (FAIL)
-   - Poor posture control (FAIL)
-   - Head tilting or drooping (FAIL)
-   - Unsteady positioning (FAIL)
+Be thorough but fair in your assessment. Only fail cases where there are clear indicators of potential impairment that could affect workplace safety.`;
 
-4. SKIN COLOR CHANGES:
-   - Unusual flushing of face (FAIL)
-   - Excessive pallor or pale appearance (FAIL)
-   - Other color changes indicating impairment (FAIL)
-   - Visible signs of distress (FAIL)
+      // Extract base64 image data
+      const imageData = validatedData.imageDataUrl?.split(',')[1] || '';
 
-ASSESSMENT GUIDELINES:
-- PASS only if ALL indicators show the person is CLEARLY alert, focused, and fit for work
-- FAIL if ANY indicator shows potential impairment or safety concern
-- This is safety-critical work - err on the side of caution
-- When in doubt about fitness, FAIL the check
-
-Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detailed explanation citing specific indicators observed" }`;
-
+      // Use Gemini 2.5 Pro with structured JSON schema (proven WorkSafeVision approach)
       const result = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.5-pro",
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "object",
+            properties: {
+              overallStatus: {
+                type: "string",
+                enum: ["passed", "failed"]
+              },
+              confidence: {
+                type: "number",
+                minimum: 0,
+                maximum: 100
+              },
+              criteria: {
+                type: "object",
+                properties: {
+                  eyeMovement: {
+                    type: "object",
+                    properties: {
+                      score: { type: "number" },
+                      status: { type: "string", enum: ["normal", "abnormal"] }
+                    },
+                    required: ["score", "status"]
+                  },
+                  facialExpression: {
+                    type: "object",
+                    properties: {
+                      score: { type: "number" },
+                      status: { type: "string", enum: ["normal", "abnormal"] }
+                    },
+                    required: ["score", "status"]
+                  },
+                  headPosition: {
+                    type: "object",
+                    properties: {
+                      score: { type: "number" },
+                      status: { type: "string", enum: ["stable", "unstable"] }
+                    },
+                    required: ["score", "status"]
+                  },
+                  skinColor: {
+                    type: "object",
+                    properties: {
+                      score: { type: "number" },
+                      status: { type: "string", enum: ["normal", "abnormal"] }
+                    },
+                    required: ["score", "status"]
+                  }
+                },
+                required: ["eyeMovement", "facialExpression", "headPosition", "skinColor"]
+              },
+              detectedIssues: {
+                type: "array",
+                items: { type: "string" }
+              },
+              riskLevel: {
+                type: "string",
+                enum: ["low", "medium", "high"]
+              },
+              analysis: {
+                type: "string"
+              }
+            },
+            required: ["overallStatus", "confidence", "criteria", "detectedIssues", "riskLevel", "analysis"]
+          },
+        },
         contents: [
           {
-            role: "user",
-            parts: [
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: validatedData.imageDataUrl?.split(',')[1] || '',
-                },
-              },
-              { text: prompt },
-            ],
+            inlineData: {
+              data: imageData,
+              mimeType: "image/jpeg",
+            },
           },
+          "Analyze this worker selfie for workplace safety compliance and fitness for duty assessment.",
         ],
       });
 
-      // Extract response text from Gemini API response
-      let responseText = "";
-      try {
-        if (result.response && typeof result.response.text === 'function') {
-          responseText = await result.response.text();
-        } else if (result.candidates && result.candidates[0]) {
-          responseText = result.candidates[0].content.parts[0].text || "";
-        } else {
-          responseText = JSON.stringify(result);
-        }
-      } catch (error) {
-        console.error("Error extracting Gemini response:", error);
-        responseText = JSON.stringify(result);
-      }
-      console.log("Gemini AI Response:", responseText);
+      // Extract response text
+      const responseText = result.text;
       
-      // Parse AI response - handle both JSON and markdown wrapped JSON
-      let aiResult;
-      try {
-        // Remove markdown code blocks if present
-        const cleanedText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        aiResult = JSON.parse(cleanedText);
-      } catch {
-        // Fallback if AI doesn't return proper JSON
-        aiResult = {
-          status: responseText.toLowerCase().includes("passed") ? "passed" : "failed",
-          analysis: responseText,
-        };
+      if (!responseText) {
+        throw new Error("Empty response from Gemini AI model");
       }
+
+      console.log("Gemini AI Response:", responseText);
+
+      // Parse structured JSON response
+      const aiResult = JSON.parse(responseText);
+
+      // Validate the response structure
+      if (!aiResult.overallStatus || !aiResult.criteria || typeof aiResult.confidence !== 'number') {
+        throw new Error("Invalid response structure from Gemini AI");
+      }
+
+      // Ensure confidence is within valid range
+      aiResult.confidence = Math.max(0, Math.min(100, aiResult.confidence));
       
       console.log("Sobriety Check Result:", aiResult);
 
       // Set cooldown if failed (5-6 hours)
-      const cooldownUntil = aiResult.status === "failed" 
+      const cooldownUntil = aiResult.overallStatus === "failed" 
         ? new Date(Date.now() + (5.5 * 60 * 60 * 1000)) // 5.5 hours
         : undefined;
 
       const check = await storage.createSobrietyCheck({
         ...validatedData,
-        status: aiResult.status,
-        analysisResult: aiResult.analysis,
+        status: aiResult.overallStatus,
+        analysisResult: JSON.stringify(aiResult),
         cooldownUntil,
       });
 
       res.json(check);
     } catch (error: any) {
       console.error("Sobriety check error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || "Sobriety check failed" });
     }
   });
 

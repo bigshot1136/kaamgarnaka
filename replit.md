@@ -111,22 +111,31 @@ Preferred communication style: Simple, everyday language.
 ### AI Integration
 
 **Sobriety Verification System:**
-- Integration with Google Gemini AI vision model
+- Integration with Google Gemini 2.5 Pro AI vision model (WorkSafeVision approach)
 - Camera capture interface for selfie/video submission
-- Analysis of impairment indicators:
+- Structured JSON response schema for reliable analysis
+- Analysis of impairment indicators with scoring:
   - Eye movement and focus (bloodshot, dilated pupils, glazed appearance)
   - Facial expressions (confusion, disorientation, altered state)
   - Head position and stability (swaying, poor posture control)
   - Skin color changes (flushing, pallor)
-- Three-state result: passed, failed, pending_review
-- Failed checks prevent job start for 5-6 hours
-- Review state allows manual override by administrators
+- Detailed response includes:
+  - Overall status: passed/failed
+  - Confidence score (0-100)
+  - Individual criteria scores and status
+  - List of detected issues
+  - Risk level assessment (low/medium/high)
+  - Detailed analysis text
+- Failed checks trigger 5.5-hour cooldown period
+- Manual review option for edge cases
 
-**External AI Service:**
-- References existing deployed AI model at WorkSafeVision
-- Gemini AI model accessed via `@google/genai` package
-- Image processing via base64 encoding
-- Detailed analysis feedback stored in database
+**AI Implementation:**
+- Based on WorkSafeVision repository (https://github.com/Bigshot95/worksafevision)
+- Uses Gemini 2.5 Pro model for higher reliability
+- Structured JSON schema ensures consistent responses
+- Base64 image encoding for analysis
+- Comprehensive error handling and validation
+- Detailed analysis stored in database for transparency
 
 ### Payment Integration
 
