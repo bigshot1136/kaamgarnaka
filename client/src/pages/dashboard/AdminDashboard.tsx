@@ -135,6 +135,10 @@ export default function AdminDashboard() {
     queryKey: ["/api/admin/statistics"],
   });
 
+  const { data: pendingWithdrawals } = useQuery<any[]>({
+    queryKey: ["/api/withdrawals/pending"],
+  });
+
   const approveMutation = useMutation({
     mutationFn: (checkId: string) => 
       apiRequest("POST", `/api/admin/sobriety-check/${checkId}/approve`),
@@ -218,6 +222,46 @@ export default function AdminDashboard() {
     },
   });
 
+  const approveWithdrawalMutation = useMutation({
+    mutationFn: ({ withdrawalId, utrNumber }: { withdrawalId: string; utrNumber?: string }) => 
+      apiRequest("POST", `/api/withdrawals/${withdrawalId}/approve`, { utrNumber }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/withdrawals/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/statistics"] });
+      toast({
+        title: "Withdrawal Approved",
+        description: "Withdrawal has been approved and marked as completed",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve withdrawal",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectWithdrawalMutation = useMutation({
+    mutationFn: (withdrawalId: string) => 
+      apiRequest("POST", `/api/withdrawals/${withdrawalId}/reject`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/withdrawals/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/statistics"] });
+      toast({
+        title: "Withdrawal Rejected",
+        description: "Withdrawal has been rejected and amount refunded",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject withdrawal",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "passed":
@@ -278,7 +322,7 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs value={mainTab} onValueChange={setMainTab}>
-        <TabsList className="grid w-full grid-cols-5" data-testid="tabs-main">
+        <TabsList className="grid w-full grid-cols-6" data-testid="tabs-main">
           <TabsTrigger value="sobriety" data-testid="tab-sobriety">
             <Eye className="w-4 h-4 mr-2" />
             Sobriety Checks
@@ -294,6 +338,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="payments" data-testid="tab-payments">
             <DollarSign className="w-4 h-4 mr-2" />
             Payments
+          </TabsTrigger>
+          <TabsTrigger value="withdrawals" data-testid="tab-withdrawals">
+            <DollarSign className="w-4 h-4 mr-2" />
+            Withdrawals
           </TabsTrigger>
           <TabsTrigger value="statistics" data-testid="tab-statistics">
             <BarChart3 className="w-4 h-4 mr-2" />
@@ -616,6 +664,88 @@ export default function AdminDashboard() {
                 </Card>
               );
             })}
+          </div>
+        </TabsContent>
+
+        {/* Withdrawals Tab */}
+        <TabsContent value="withdrawals" className="mt-6">
+          <div className="space-y-4">
+            {pendingWithdrawals?.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No pending withdrawal requests</p>
+                </CardContent>
+              </Card>
+            ) : (
+              pendingWithdrawals?.map((withdrawal: any) => (
+                <Card key={withdrawal.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Withdrawal Request</CardTitle>
+                        <CardDescription>
+                          Requested on {format(new Date(withdrawal.requestedAt), "PPp")}
+                        </CardDescription>
+                      </div>
+                      <Badge className="bg-yellow-500 text-white">Pending Approval</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Amount</p>
+                        <p className="font-semibold text-lg">₹{withdrawal.amount?.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Laborer ID</p>
+                        <p className="font-mono text-sm">{withdrawal.laborerId?.slice(0, 8)}...</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Status</p>
+                        <p className="capitalize">{withdrawal.status}</p>
+                      </div>
+                    </div>
+
+                    {withdrawal.status === "pending" && (
+                      <div className="flex gap-2 pt-4 border-t">
+                        <Button
+                          onClick={() => {
+                            const utrNumber = prompt("Enter UTR Number (optional):");
+                            approveWithdrawalMutation.mutate({ 
+                              withdrawalId: withdrawal.id,
+                              utrNumber: utrNumber || undefined
+                            });
+                          }}
+                          disabled={approveWithdrawalMutation.isPending}
+                          className="flex-1"
+                          data-testid={`button-approve-withdrawal-${withdrawal.id}`}
+                        >
+                          {approveWithdrawalMutation.isPending ? (
+                            <><Loader className="w-4 h-4 mr-2 animate-spin" />Approving...</>
+                          ) : (
+                            <><CheckCircle className="w-4 h-4 mr-2" />Approve Withdrawal</>
+                          )}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => rejectWithdrawalMutation.mutate(withdrawal.id)}
+                          disabled={rejectWithdrawalMutation.isPending}
+                          className="flex-1"
+                          data-testid={`button-reject-withdrawal-${withdrawal.id}`}
+                        >
+                          {rejectWithdrawalMutation.isPending ? (
+                            <><Loader className="w-4 h-4 mr-2 animate-spin" />Rejecting...</>
+                          ) : (
+                            <><XCircle className="w-4 h-4 mr-2" />Reject Withdrawal</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
 

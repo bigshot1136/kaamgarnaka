@@ -1100,35 +1100,87 @@ Be thorough but fair in your assessment. Only fail cases where there are clear i
     }
   });
 
-  app.patch("/api/withdrawals/:withdrawalId", async (req, res) => {
+  // Approve withdrawal (admin only)
+  app.post("/api/withdrawals/:withdrawalId/approve", requireAdmin, async (req, res) => {
     try {
-      const withdrawal = await storage.updateWithdrawal(req.params.withdrawalId, req.body);
+      const { utrNumber } = req.body;
+      
+      const withdrawal = await storage.getWithdrawal(req.params.withdrawalId);
       if (!withdrawal) {
         return res.status(404).json({ error: "Withdrawal not found" });
       }
-      
-      // If withdrawal is completed, update wallet total withdrawn
-      if (req.body.status === "completed" && withdrawal.status !== "completed") {
-        const wallet = await storage.getWorkerWallet(withdrawal.laborerId);
-        if (wallet) {
-          await storage.updateWorkerWallet(withdrawal.laborerId, {
-            totalWithdrawn: wallet.totalWithdrawn + withdrawal.amount,
-          });
-        }
+
+      // CRITICAL: Idempotency check - prevent double completion
+      if (withdrawal.status !== "pending") {
+        return res.status(400).json({ 
+          error: `Withdrawal cannot be approved. Current status: ${withdrawal.status}` 
+        });
       }
-      
-      // If withdrawal failed or cancelled, refund to available balance
-      if ((req.body.status === "failed" || req.body.status === "cancelled") && withdrawal.status === "pending") {
-        const wallet = await storage.getWorkerWallet(withdrawal.laborerId);
-        if (wallet) {
-          await storage.updateWorkerWallet(withdrawal.laborerId, {
-            availableBalance: wallet.availableBalance + withdrawal.amount,
-          });
-        }
+
+      // Update withdrawal to completed
+      const updatedWithdrawal = await storage.updateWithdrawal(req.params.withdrawalId, {
+        status: "completed",
+        processedAt: new Date(),
+        utrNumber: utrNumber || undefined,
+      });
+
+      // Verify withdrawal was updated
+      if (!updatedWithdrawal || updatedWithdrawal.status !== "completed") {
+        throw new Error("Failed to update withdrawal status");
       }
-      
-      res.json(withdrawal);
+
+      // Update wallet total withdrawn
+      const wallet = await storage.getWorkerWallet(withdrawal.laborerId);
+      if (wallet) {
+        await storage.updateWorkerWallet(withdrawal.laborerId, {
+          totalWithdrawn: wallet.totalWithdrawn + withdrawal.amount,
+        });
+      }
+
+      res.json(updatedWithdrawal);
     } catch (error: any) {
+      console.error("Approve withdrawal error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Reject withdrawal (admin only)
+  app.post("/api/withdrawals/:withdrawalId/reject", requireAdmin, async (req, res) => {
+    try {
+      const withdrawal = await storage.getWithdrawal(req.params.withdrawalId);
+      if (!withdrawal) {
+        return res.status(404).json({ error: "Withdrawal not found" });
+      }
+
+      // CRITICAL: Status check - can only reject pending withdrawals
+      if (withdrawal.status !== "pending") {
+        return res.status(400).json({ 
+          error: `Withdrawal cannot be rejected. Current status: ${withdrawal.status}` 
+        });
+      }
+
+      // Update withdrawal to failed
+      const updatedWithdrawal = await storage.updateWithdrawal(req.params.withdrawalId, {
+        status: "failed",
+        processedAt: new Date(),
+      });
+
+      // Verify withdrawal was updated
+      if (!updatedWithdrawal || updatedWithdrawal.status !== "failed") {
+        throw new Error("Failed to update withdrawal status");
+      }
+
+      // Refund to available balance
+      const wallet = await storage.getWorkerWallet(withdrawal.laborerId);
+      if (wallet) {
+        await storage.updateWorkerWallet(withdrawal.laborerId, {
+          availableBalance: wallet.availableBalance + withdrawal.amount,
+        });
+      }
+
+      res.json(updatedWithdrawal);
+    } catch (error: any) {
+      console.error("Reject withdrawal error:", error);
       res.status(500).json({ error: error.message });
     }
   });
