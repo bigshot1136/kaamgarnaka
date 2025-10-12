@@ -312,19 +312,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No laborer assigned to this job" });
       }
 
+      // Calculate amounts with dual convenience charges
+      const customerConvenienceFee = job.customerConvenienceFee || 10;
+      const workerConvenienceFee = job.workerConvenienceFee || 10;
+      const workerNetEarnings = job.totalAmount - workerConvenienceFee; // Worker gets service amount minus their fee
+      const platformRevenue = customerConvenienceFee + workerConvenienceFee; // ₹20 total
+
       // Mark job as completed
       const completedJob = await storage.updateJob(req.params.jobId, {
         status: "completed",
         completedAt: new Date(),
       });
 
-      // Create payment record
+      // Create payment record with dual convenience charges
       const payment = await storage.createPayment({
         jobId: job.id,
         laborerId: job.assignedLaborerId,
         customerId: job.customerId,
-        amount: job.totalAmount,
-        platformFee: job.platformFee,
+        amount: workerNetEarnings, // Worker's net earnings after fee deduction
+        customerConvenienceFee,
+        workerConvenienceFee,
+        platformFee: platformRevenue, // Total platform revenue
         status: "completed",
       });
 
@@ -332,11 +340,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const laborerProfile = await storage.getLaborerProfile(job.assignedLaborerId);
       if (laborerProfile) {
         await storage.updateLaborerProfile(job.assignedLaborerId, {
-          totalEarnings: (laborerProfile.totalEarnings || 0) + job.totalAmount,
+          totalEarnings: (laborerProfile.totalEarnings || 0) + job.totalAmount, // Total before fee
           completedJobs: (laborerProfile.completedJobs || 0) + 1,
           availabilityStatus: "available", // Make laborer available again
         });
       }
+
+      // Update or create worker wallet
+      let wallet = await storage.getWorkerWallet(job.assignedLaborerId);
+      if (!wallet) {
+        wallet = await storage.createWorkerWallet({
+          laborerId: job.assignedLaborerId,
+        });
+      }
+
+      // Update wallet with new earnings
+      await storage.updateWorkerWallet(job.assignedLaborerId, {
+        availableBalance: wallet.availableBalance + workerNetEarnings,
+        totalEarnings: wallet.totalEarnings + job.totalAmount,
+        totalPlatformFees: wallet.totalPlatformFees + workerConvenienceFee,
+      });
+
+      // Update platform revenue for today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of day for consistent date comparison
+
+      await storage.createOrUpdatePlatformRevenue({
+        date: today,
+        totalRevenue: platformRevenue,
+        customerConvenienceFees: customerConvenienceFee,
+        workerConvenienceFees: workerConvenienceFee,
+        transactionCount: 1,
+        totalServiceAmount: job.totalAmount,
+        totalWorkerPayouts: workerNetEarnings,
+      });
 
       res.json({ job: completedJob, payment });
     } catch (error: any) {
@@ -541,6 +578,160 @@ Respond with a JSON object: { "status": "passed" | "failed", "analysis": "detail
         return res.status(404).json({ error: "Payment not found" });
       }
       res.json(payment);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Worker Wallet routes
+  app.get("/api/wallet/:laborerId", async (req, res) => {
+    try {
+      let wallet = await storage.getWorkerWallet(req.params.laborerId);
+      
+      // Create wallet if it doesn't exist
+      if (!wallet) {
+        wallet = await storage.createWorkerWallet({
+          laborerId: req.params.laborerId,
+        });
+      }
+      
+      res.json(wallet);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/wallet/:laborerId/bank-details", async (req, res) => {
+    try {
+      const { bankAccountNumber, bankIfscCode, bankAccountHolderName, bankName } = req.body;
+      
+      const wallet = await storage.updateWorkerWallet(req.params.laborerId, {
+        bankAccountNumber,
+        bankIfscCode,
+        bankAccountHolderName,
+        bankName,
+      });
+      
+      if (!wallet) {
+        return res.status(404).json({ error: "Wallet not found" });
+      }
+      
+      res.json(wallet);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Withdrawal routes
+  app.post("/api/withdrawals", async (req, res) => {
+    try {
+      const { laborerId, amount } = req.body;
+      
+      // Get wallet to check balance
+      const wallet = await storage.getWorkerWallet(laborerId);
+      if (!wallet) {
+        return res.status(404).json({ error: "Wallet not found" });
+      }
+      
+      // Validate withdrawal amount
+      if (amount < 100) {
+        return res.status(400).json({ error: "Minimum withdrawal amount is ₹100" });
+      }
+      
+      if (amount > wallet.availableBalance) {
+        return res.status(400).json({ error: "Insufficient balance" });
+      }
+      
+      // Check if bank account is added
+      if (!wallet.bankAccountNumber) {
+        return res.status(400).json({ error: "Bank account not added" });
+      }
+      
+      // Create withdrawal request
+      const withdrawal = await storage.createWithdrawal({
+        laborerId,
+        amount,
+        status: "pending",
+      });
+      
+      // Deduct from available balance
+      await storage.updateWorkerWallet(laborerId, {
+        availableBalance: wallet.availableBalance - amount,
+      });
+      
+      res.json(withdrawal);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/withdrawals/laborer/:laborerId", async (req, res) => {
+    try {
+      const withdrawals = await storage.getWithdrawalsByLaborer(req.params.laborerId);
+      res.json(withdrawals);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/withdrawals/pending", async (req, res) => {
+    try {
+      const withdrawals = await storage.getPendingWithdrawals();
+      res.json(withdrawals);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/withdrawals/:withdrawalId", async (req, res) => {
+    try {
+      const withdrawal = await storage.updateWithdrawal(req.params.withdrawalId, req.body);
+      if (!withdrawal) {
+        return res.status(404).json({ error: "Withdrawal not found" });
+      }
+      
+      // If withdrawal is completed, update wallet total withdrawn
+      if (req.body.status === "completed" && withdrawal.status !== "completed") {
+        const wallet = await storage.getWorkerWallet(withdrawal.laborerId);
+        if (wallet) {
+          await storage.updateWorkerWallet(withdrawal.laborerId, {
+            totalWithdrawn: wallet.totalWithdrawn + withdrawal.amount,
+          });
+        }
+      }
+      
+      // If withdrawal failed or cancelled, refund to available balance
+      if ((req.body.status === "failed" || req.body.status === "cancelled") && withdrawal.status === "pending") {
+        const wallet = await storage.getWorkerWallet(withdrawal.laborerId);
+        if (wallet) {
+          await storage.updateWorkerWallet(withdrawal.laborerId, {
+            availableBalance: wallet.availableBalance + withdrawal.amount,
+          });
+        }
+      }
+      
+      res.json(withdrawal);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Platform Revenue routes
+  app.get("/api/platform-revenue", async (req, res) => {
+    try {
+      const totalRevenue = await storage.getTotalPlatformRevenue();
+      res.json(totalRevenue);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/platform-revenue/daily", async (req, res) => {
+    try {
+      const { date } = req.query;
+      const targetDate = date ? new Date(date as string) : new Date();
+      const revenue = await storage.getPlatformRevenue(targetDate);
+      res.json(revenue || { totalRevenue: 0, transactionCount: 0 });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

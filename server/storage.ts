@@ -11,11 +11,20 @@ import {
   type InsertSobrietyCheck,
   type Payment,
   type InsertPayment,
+  type WorkerWallet,
+  type InsertWorkerWallet,
+  type Withdrawal,
+  type InsertWithdrawal,
+  type PlatformRevenue,
+  type InsertPlatformRevenue,
   users,
   laborerProfiles,
   jobs,
   sobrietyChecks,
   payments,
+  workerWallets,
+  withdrawals,
+  platformRevenue,
 } from "@shared/schema";
 import bcrypt from "bcrypt";
 
@@ -50,6 +59,23 @@ export interface IStorage {
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPaymentsByLaborer(laborerId: string): Promise<Payment[]>;
   updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined>;
+
+  // Worker Wallet methods
+  getWorkerWallet(laborerId: string): Promise<WorkerWallet | undefined>;
+  createWorkerWallet(wallet: InsertWorkerWallet): Promise<WorkerWallet>;
+  updateWorkerWallet(laborerId: string, updates: Partial<WorkerWallet>): Promise<WorkerWallet | undefined>;
+  
+  // Withdrawal methods
+  createWithdrawal(withdrawal: InsertWithdrawal): Promise<Withdrawal>;
+  getWithdrawalsByLaborer(laborerId: string): Promise<Withdrawal[]>;
+  getWithdrawal(id: string): Promise<Withdrawal | undefined>;
+  updateWithdrawal(id: string, updates: Partial<Withdrawal>): Promise<Withdrawal | undefined>;
+  getPendingWithdrawals(): Promise<Withdrawal[]>;
+  
+  // Platform Revenue methods
+  getPlatformRevenue(date: Date): Promise<PlatformRevenue | undefined>;
+  createOrUpdatePlatformRevenue(revenue: InsertPlatformRevenue): Promise<PlatformRevenue>;
+  getTotalPlatformRevenue(): Promise<{ total: number; transactions: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -237,6 +263,117 @@ export class DatabaseStorage implements IStorage {
   async updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined> {
     const result = await db.update(payments).set(updates).where(eq(payments.id, id)).returning();
     return result[0];
+  }
+
+  // Worker Wallet methods
+  async getWorkerWallet(laborerId: string): Promise<WorkerWallet | undefined> {
+    const result = await db
+      .select()
+      .from(workerWallets)
+      .where(eq(workerWallets.laborerId, laborerId))
+      .limit(1);
+    return result[0];
+  }
+
+  async createWorkerWallet(wallet: InsertWorkerWallet): Promise<WorkerWallet> {
+    const result = await db.insert(workerWallets).values(wallet).returning();
+    return result[0];
+  }
+
+  async updateWorkerWallet(laborerId: string, updates: Partial<WorkerWallet>): Promise<WorkerWallet | undefined> {
+    const result = await db
+      .update(workerWallets)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(workerWallets.laborerId, laborerId))
+      .returning();
+    return result[0];
+  }
+
+  // Withdrawal methods
+  async createWithdrawal(withdrawal: InsertWithdrawal): Promise<Withdrawal> {
+    const result = await db.insert(withdrawals).values(withdrawal).returning();
+    return result[0];
+  }
+
+  async getWithdrawalsByLaborer(laborerId: string): Promise<Withdrawal[]> {
+    return await db
+      .select()
+      .from(withdrawals)
+      .where(eq(withdrawals.laborerId, laborerId))
+      .orderBy(desc(withdrawals.requestedAt));
+  }
+
+  async getWithdrawal(id: string): Promise<Withdrawal | undefined> {
+    const result = await db
+      .select()
+      .from(withdrawals)
+      .where(eq(withdrawals.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateWithdrawal(id: string, updates: Partial<Withdrawal>): Promise<Withdrawal | undefined> {
+    const result = await db
+      .update(withdrawals)
+      .set(updates)
+      .where(eq(withdrawals.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getPendingWithdrawals(): Promise<Withdrawal[]> {
+    return await db
+      .select()
+      .from(withdrawals)
+      .where(eq(withdrawals.status, "pending"))
+      .orderBy(desc(withdrawals.requestedAt));
+  }
+
+  // Platform Revenue methods
+  async getPlatformRevenue(date: Date): Promise<PlatformRevenue | undefined> {
+    const result = await db
+      .select()
+      .from(platformRevenue)
+      .where(eq(platformRevenue.date, date))
+      .limit(1);
+    return result[0];
+  }
+
+  async createOrUpdatePlatformRevenue(revenue: InsertPlatformRevenue): Promise<PlatformRevenue> {
+    const existing = await this.getPlatformRevenue(revenue.date);
+    
+    if (existing) {
+      const result = await db
+        .update(platformRevenue)
+        .set({
+          totalRevenue: existing.totalRevenue + (revenue.totalRevenue || 0),
+          customerConvenienceFees: existing.customerConvenienceFees + (revenue.customerConvenienceFees || 0),
+          workerConvenienceFees: existing.workerConvenienceFees + (revenue.workerConvenienceFees || 0),
+          transactionCount: existing.transactionCount + (revenue.transactionCount || 0),
+          totalServiceAmount: existing.totalServiceAmount + (revenue.totalServiceAmount || 0),
+          totalWorkerPayouts: existing.totalWorkerPayouts + (revenue.totalWorkerPayouts || 0),
+        })
+        .where(eq(platformRevenue.date, revenue.date))
+        .returning();
+      return result[0];
+    } else {
+      const result = await db.insert(platformRevenue).values(revenue).returning();
+      return result[0];
+    }
+  }
+
+  async getTotalPlatformRevenue(): Promise<{ total: number; transactions: number }> {
+    const result = await db
+      .select({
+        total: sql<number>`sum(${platformRevenue.totalRevenue})`,
+        transactions: sql<number>`sum(${platformRevenue.transactionCount})`,
+      })
+      .from(platformRevenue);
+    
+    return {
+      total: Number(result[0]?.total || 0),
+      transactions: Number(result[0]?.transactions || 0),
+    };
   }
 }
 
