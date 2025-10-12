@@ -8,7 +8,7 @@ import { z } from "zod";
 export const userRoleEnum = pgEnum("user_role", ["customer", "laborer", "admin"]);
 export const jobStatusEnum = pgEnum("job_status", ["pending", "assigned", "in_progress", "ready_for_review", "completed", "cancelled"]);
 export const sobrietyStatusEnum = pgEnum("sobriety_status", ["passed", "failed", "pending_review"]);
-export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "pending_approval", "approved", "rejected", "completed"]);
 export const skillTypeEnum = pgEnum("skill_type", ["mason", "carpenter", "plumber", "painter", "helper"]);
 export const withdrawalStatusEnum = pgEnum("withdrawal_status", ["pending", "processing", "completed", "failed", "cancelled"]);
 export const transactionTypeEnum = pgEnum("transaction_type", ["earning", "withdrawal", "platform_fee"]);
@@ -82,6 +82,9 @@ export const payments = pgTable("payments", {
   workerConvenienceFee: integer("worker_convenience_fee").default(10).notNull(),
   platformFee: integer("platform_fee").notNull(), // total platform revenue (customer + worker fees)
   status: paymentStatusEnum("status").default("pending").notNull(),
+  transactionNumber: text("transaction_number"), // UPI transaction number/UTR
+  paymentScreenshotUrl: text("payment_screenshot_url"), // Screenshot proof
+  approvedAt: timestamp("approved_at"), // When admin approved payment
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -239,6 +242,10 @@ export const insertSobrietyCheckSchema = createInsertSchema(sobrietyChecks).omit
   id: true,
   checkedAt: true,
   reviewedAt: true,
+}).extend({
+  status: z.enum(["passed", "failed", "pending_review"]).optional(),
+  cooldownUntil: z.date().optional(),
+  analysisResult: z.string().optional(),
 });
 
 export const insertPaymentSchema = createInsertSchema(payments).omit({

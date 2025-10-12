@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, CheckCircle, Clock, XCircle, Users, Briefcase, DollarSign, BarChart3, Eye } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, XCircle, Users, Briefcase, DollarSign, BarChart3, Eye, LogOut } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SobrietyCheck {
   id: string;
@@ -105,6 +106,7 @@ interface Statistics {
 
 export default function AdminDashboard() {
   const { toast } = useToast();
+  const { logout } = useAuth();
   const [selectedCheck, setSelectedCheck] = useState<SobrietyCheck | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [mainTab, setMainTab] = useState<string>("sobriety");
@@ -221,9 +223,15 @@ export default function AdminDashboard() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="heading-admin-dashboard">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Manage platform operations and monitor activity</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold" data-testid="heading-admin-dashboard">Admin Dashboard</h1>
+          <p className="text-muted-foreground">Manage platform operations and monitor activity</p>
+        </div>
+        <Button variant="outline" onClick={logout} data-testid="button-admin-logout">
+          <LogOut className="w-4 h-4 mr-2" />
+          Logout
+        </Button>
       </div>
 
       <Tabs value={mainTab} onValueChange={setMainTab}>
