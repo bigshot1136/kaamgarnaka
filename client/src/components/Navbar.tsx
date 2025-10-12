@@ -75,6 +75,12 @@ export function Navbar() {
                       {t("dashboard")}
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" data-testid="link-profile">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} data-testid="button-signout">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -142,6 +148,17 @@ export function Navbar() {
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         {t("dashboard")}
+                      </Button>
+                    </Link>
+                    <Link href="/profile">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => setMobileMenuOpen(false)}
+                        data-testid="link-mobile-profile"
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        Profile
                       </Button>
                     </Link>
                     <Button

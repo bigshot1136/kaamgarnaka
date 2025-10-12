@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertLaborerProfileSchema, insertJobSchema, insertSobrietyCheckSchema } from "@shared/schema";
+import { insertUserSchema, insertLaborerProfileSchema, insertJobSchema, insertSobrietyCheckSchema, type User } from "@shared/schema";
 import { GoogleGenAI } from "@google/genai";
 import multer from "multer";
 import path from "path";
@@ -105,6 +105,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.verifyPassword(email, password);
       if (!user) {
         return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // User profile routes
+  app.get("/api/user/:userId", async (req, res) => {
+    try {
+      const requestingUserId = req.headers['x-user-id'] as string;
+      const targetUserId = req.params.userId;
+
+      // Authorization: users can only view their own profile (unless admin)
+      if (!requestingUserId) {
+        return res.status(401).json({ error: "Unauthorized - No user ID provided" });
+      }
+
+      // Verify requesting user exists
+      const requestingUser = await storage.getUser(requestingUserId);
+      if (!requestingUser) {
+        return res.status(401).json({ error: "Unauthorized - Invalid user" });
+      }
+
+      if (requestingUserId !== targetUserId) {
+        // Check if requesting user is admin
+        if (requestingUser.role !== 'admin') {
+          return res.status(403).json({ error: "Forbidden - You can only view your own profile" });
+        }
+      }
+
+      const user = await storage.getUser(targetUserId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/user/:userId", async (req, res) => {
+    try {
+      const requestingUserId = req.headers['x-user-id'] as string;
+      const targetUserId = req.params.userId;
+
+      // Authorization: users can only update their own profile
+      if (!requestingUserId) {
+        return res.status(401).json({ error: "Unauthorized - No user ID provided" });
+      }
+
+      // Verify requesting user exists
+      const requestingUser = await storage.getUser(requestingUserId);
+      if (!requestingUser) {
+        return res.status(401).json({ error: "Unauthorized - Invalid user" });
+      }
+
+      if (requestingUserId !== targetUserId) {
+        return res.status(403).json({ error: "Forbidden - You can only update your own profile" });
+      }
+
+      const { fullName, phone, address } = req.body;
+      
+      // Validation
+      const updates: Partial<User> = {};
+      if (fullName !== undefined) {
+        if (typeof fullName !== 'string' || fullName.length < 2) {
+          return res.status(400).json({ error: "Full name must be at least 2 characters" });
+        }
+        updates.fullName = fullName;
+      }
+      if (phone !== undefined) {
+        if (typeof phone !== 'string' || phone.length < 10) {
+          return res.status(400).json({ error: "Phone must be at least 10 digits" });
+        }
+        updates.phone = phone;
+      }
+      if (address !== undefined) {
+        if (typeof address !== 'string' || address.length < 5) {
+          return res.status(400).json({ error: "Address must be at least 5 characters" });
+        }
+        updates.address = address;
+      }
+
+      const user = await storage.updateUser(targetUserId, updates);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
       }
 
       const { password: _, ...userWithoutPassword } = user;

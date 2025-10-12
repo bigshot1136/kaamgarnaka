@@ -18,6 +18,7 @@ import RoleSelection from "@/pages/auth/RoleSelection";
 import SignUp from "@/pages/auth/SignUp";
 import SignIn from "@/pages/auth/SignIn";
 import LaborerSetup from "@/pages/profile/LaborerSetup";
+import ProfilePage from "@/pages/profile/ProfilePage";
 import CustomerDashboard from "@/pages/dashboard/CustomerDashboard";
 import LaborerDashboard from "@/pages/dashboard/LaborerDashboard";
 import AdminDashboard from "@/pages/dashboard/AdminDashboard";
@@ -37,6 +38,11 @@ function Router() {
       <Route path="/profile/laborer-setup">
         <ProtectedRoute requiredRole="laborer">
           <LaborerSetup />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/profile">
+        <ProtectedRoute>
+          <ProfilePage />
         </ProtectedRoute>
       </Route>
       <Route path="/dashboard/customer">

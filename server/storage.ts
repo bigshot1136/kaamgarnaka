@@ -33,6 +33,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   verifyPassword(email: string, password: string): Promise<User | null>;
 
   // Laborer Profile methods
@@ -102,6 +103,15 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .insert(users)
       .values({ ...insertUser, password: hashedPassword })
+      .returning();
+    return result[0];
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
       .returning();
     return result[0];
   }
