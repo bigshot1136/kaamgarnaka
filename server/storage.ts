@@ -52,7 +52,9 @@ export interface IStorage {
 
   // Sobriety Check methods
   createSobrietyCheck(check: InsertSobrietyCheck): Promise<SobrietyCheck>;
+  getSobrietyCheck(id: string): Promise<SobrietyCheck | undefined>;
   getLatestSobrietyCheck(laborerId: string): Promise<SobrietyCheck | undefined>;
+  getAllSobrietyChecks(): Promise<SobrietyCheck[]>;
   updateSobrietyCheck(id: string, updates: Partial<SobrietyCheck>): Promise<SobrietyCheck | undefined>;
 
   // Payment methods
@@ -216,6 +218,15 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getSobrietyCheck(id: string): Promise<SobrietyCheck | undefined> {
+    const result = await db
+      .select()
+      .from(sobrietyChecks)
+      .where(eq(sobrietyChecks.id, id))
+      .limit(1);
+    return result[0];
+  }
+
   async getLatestSobrietyCheck(laborerId: string): Promise<SobrietyCheck | undefined> {
     const result = await db
       .select()
@@ -224,6 +235,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(sobrietyChecks.checkedAt))
       .limit(1);
     return result[0];
+  }
+
+  async getAllSobrietyChecks(): Promise<SobrietyCheck[]> {
+    const result = await db
+      .select()
+      .from(sobrietyChecks)
+      .orderBy(desc(sobrietyChecks.checkedAt));
+    return result;
   }
 
   async updateSobrietyCheck(

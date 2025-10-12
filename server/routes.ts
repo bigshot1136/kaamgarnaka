@@ -518,26 +518,65 @@ Be thorough but fair in your assessment. Only fail cases where there are clear i
       console.log("Gemini AI Response:", responseText);
 
       // Parse structured JSON response
-      const aiResult = JSON.parse(responseText);
+      let aiResult;
+      try {
+        aiResult = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse AI response:", parseError);
+        throw new Error("Invalid JSON response from AI");
+      }
 
-      // Validate the response structure
-      if (!aiResult.overallStatus || !aiResult.criteria || typeof aiResult.confidence !== 'number') {
-        throw new Error("Invalid response structure from Gemini AI");
+      // Validate the response structure and set defaults if missing
+      if (!aiResult.overallStatus) {
+        console.error("Missing overallStatus in AI response:", aiResult);
+        throw new Error("AI did not return a valid status");
+      }
+
+      // Ensure all required fields are present
+      if (!aiResult.criteria) {
+        aiResult.criteria = {
+          eyeMovement: { score: 0, status: "normal" },
+          facialExpression: { score: 0, status: "normal" },
+          headPosition: { score: 0, status: "stable" },
+          skinColor: { score: 0, status: "normal" }
+        };
+      }
+
+      if (typeof aiResult.confidence !== 'number') {
+        aiResult.confidence = 50; // Default confidence
       }
 
       // Ensure confidence is within valid range
       aiResult.confidence = Math.max(0, Math.min(100, aiResult.confidence));
       
+      // Ensure detectedIssues is an array
+      if (!Array.isArray(aiResult.detectedIssues)) {
+        aiResult.detectedIssues = [];
+      }
+
+      // Ensure riskLevel exists
+      if (!aiResult.riskLevel) {
+        aiResult.riskLevel = aiResult.overallStatus === "failed" ? "medium" : "low";
+      }
+
+      // Ensure analysis text exists
+      if (!aiResult.analysis) {
+        aiResult.analysis = `Worker appears to be ${aiResult.overallStatus === "passed" ? "fit for duty" : "potentially impaired"}.`;
+      }
+      
       console.log("Sobriety Check Result:", aiResult);
 
+      // Map overallStatus to status enum values ("passed", "failed", "pending_review")
+      const status = aiResult.overallStatus as "passed" | "failed";
+
       // Set cooldown if failed (5-6 hours)
-      const cooldownUntil = aiResult.overallStatus === "failed" 
+      const cooldownUntil = status === "failed" 
         ? new Date(Date.now() + (5.5 * 60 * 60 * 1000)) // 5.5 hours
         : undefined;
 
       const check = await storage.createSobrietyCheck({
         ...validatedData,
-        status: aiResult.overallStatus,
+        status,
         analysisResult: JSON.stringify(aiResult),
         cooldownUntil,
       });
@@ -585,6 +624,86 @@ Be thorough but fair in your assessment. Only fail cases where there are clear i
       res.json(updatedCheck);
     } catch (error: any) {
       console.error("Request review error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin routes for sobriety check management
+  app.get("/api/admin/sobriety-checks", async (req, res) => {
+    try {
+      // TODO: Add admin authentication check here
+      const checks = await storage.getAllSobrietyChecks();
+      res.json(checks);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/sobriety-check/:checkId/approve", async (req, res) => {
+    try {
+      // TODO: Add admin authentication check here
+      const { checkId } = req.params;
+      
+      const check = await storage.getSobrietyCheck(checkId);
+      if (!check) {
+        return res.status(404).json({ error: "Sobriety check not found" });
+      }
+
+      if (check.status !== "pending_review") {
+        return res.status(400).json({ error: "Can only approve pending reviews" });
+      }
+
+      const updatedCheck = await storage.updateSobrietyCheck(checkId, {
+        status: "passed",
+        reviewedAt: new Date(),
+        cooldownUntil: null, // Clear cooldown
+      });
+
+      // Update laborer availability if they were on cooldown
+      await storage.updateLaborerProfile(check.laborerId, {
+        availabilityStatus: "available",
+      });
+
+      res.json(updatedCheck);
+    } catch (error: any) {
+      console.error("Approve check error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/sobriety-check/:checkId/reject", async (req, res) => {
+    try {
+      // TODO: Add admin authentication check here
+      const { checkId } = req.params;
+      const { reason } = req.body;
+      
+      const check = await storage.getSobrietyCheck(checkId);
+      if (!check) {
+        return res.status(404).json({ error: "Sobriety check not found" });
+      }
+
+      if (check.status !== "pending_review") {
+        return res.status(400).json({ error: "Can only reject pending reviews" });
+      }
+
+      // Extend cooldown by another 5.5 hours for rejected manual reviews
+      const newCooldownUntil = new Date(Date.now() + (5.5 * 60 * 60 * 1000));
+
+      const updatedCheck = await storage.updateSobrietyCheck(checkId, {
+        status: "failed",
+        reviewedAt: new Date(),
+        cooldownUntil: newCooldownUntil,
+        analysisResult: check.analysisResult ? 
+          JSON.stringify({ 
+            ...JSON.parse(check.analysisResult), 
+            manualReviewReason: reason || "Manual review rejection" 
+          }) : 
+          JSON.stringify({ manualReviewReason: reason || "Manual review rejection" }),
+      });
+
+      res.json(updatedCheck);
+    } catch (error: any) {
+      console.error("Reject check error:", error);
       res.status(500).json({ error: error.message });
     }
   });
